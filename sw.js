@@ -1,7 +1,7 @@
 /* IRONPATH service worker — cache-first app shell so the app works
    with zero connectivity once installed. Bump VERSION to ship updates. */
 
-const VERSION = 'ironpath-v1';
+const VERSION = 'ironpath-v2';
 const SHELL = [
   './',
   'index.html',

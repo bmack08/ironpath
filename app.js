@@ -728,6 +728,10 @@ function storageAvailable() {
   if (!storageAvailable()) {
     setTimeout(() => toast('⚠ This browser is blocking storage — progress will NOT survive closing this page.'), 800);
   }
+  // ask the browser to exempt our data from storage-pressure eviction
+  if (navigator.storage && navigator.storage.persist) {
+    navigator.storage.persist().catch(() => {});
+  }
   $$('.rail-link').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
   $('#testCancel').addEventListener('click', () => { $('#testOverlay').hidden = true; });
   $('#testPass').addEventListener('click', passTest);
