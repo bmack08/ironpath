@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>IRONPATH — Bodyweight Mastery</title>
+<meta name="theme-color" content="#0b0c0e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="IRONPATH">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+
+<div class="app">
+  <!-- ============ NAV RAIL ============ -->
+  <nav class="rail">
+    <div class="rail-logo">
+      <div class="logo-mark">IP</div>
+      <div class="logo-word">IRON<span>PATH</span></div>
+    </div>
+    <div class="rail-links">
+      <button class="rail-link active" data-view="today">
+        <svg viewBox="0 0 24 24"><path d="M3 13h4l2-7 4 14 2-7h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Today</span>
+      </button>
+      <button class="rail-link" data-view="train">
+        <svg viewBox="0 0 24 24"><path d="M6 5v14M18 5v14M6 12h12M3 8v8M21 8v8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span>Train</span>
+      </button>
+      <button class="rail-link" data-view="ladders">
+        <svg viewBox="0 0 24 24"><path d="M8 3v18M16 3v18M8 7h8M8 12h8M8 17h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span>Ladders</span>
+      </button>
+      <button class="rail-link" data-view="roadmap">
+        <svg viewBox="0 0 24 24"><path d="M4 19L9 5l5 10 3-6 3 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Roadmap</span>
+      </button>
+      <button class="rail-link" data-view="recover">
+        <svg viewBox="0 0 24 24"><path d="M12 21C7 17 3 13.5 3 9.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 9 2.5c0 4-4 7.5-9 11.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        <span>Recover</span>
+      </button>
+    </div>
+    <div class="rail-foot">
+      <div class="streak-chip" id="streakChip" title="Consecutive scheduled sessions completed">
+        <span class="flame">▲</span><span id="streakNum">0</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============ MAIN ============ -->
+  <main class="stage" id="stage"></main>
+</div>
+
+<!-- ============ TEST-OUT MODAL ============ -->
+<div class="overlay" id="testOverlay" hidden>
+  <div class="modal test-modal">
+    <div class="modal-hazard"></div>
+    <div class="modal-body">
+      <div class="test-kicker">TEST-OUT GATE</div>
+      <h2 class="test-name" id="testName">—</h2>
+      <div class="test-req mono" id="testReq">—</div>
+      <p class="test-note">Do the test fresh — first thing in a session, after a full warm-up.
+        Check every box honestly. Failing a test costs nothing; passing one you didn't earn costs you an injury three levels from now.</p>
+      <div class="test-checks" id="testChecks"></div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="testCancel">Not yet</button>
+        <button class="btn primary" id="testPass" disabled>PASS — UNLOCK NEXT LEVEL</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ LEVEL-UP CELEBRATION ============ -->
+<div class="overlay celebrate" id="celebrateOverlay" hidden>
+  <canvas id="confettiCanvas"></canvas>
+  <div class="celebrate-card">
+    <div class="celebrate-kicker" id="celebrateKicker">LEVEL CLEARED</div>
+    <div class="celebrate-name" id="celebrateName">—</div>
+    <div class="celebrate-next" id="celebrateNext">—</div>
+    <button class="btn primary" id="celebrateClose">KEEP CLIMBING</button>
+  </div>
+</div>
+
+<!-- ============ REST TIMER ============ -->
+<div class="rest-dock" id="restDock" hidden>
+  <svg class="rest-ring" viewBox="0 0 100 100">
+    <circle class="ring-track" cx="50" cy="50" r="44"/>
+    <circle class="ring-fill" id="restRingFill" cx="50" cy="50" r="44"/>
+  </svg>
+  <div class="rest-time mono" id="restTime">90</div>
+  <div class="rest-label">REST</div>
+  <button class="rest-skip" id="restSkip">skip</button>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+  // Installable offline app — registration is a no-op where unsupported (file://, sandboxes).
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "IRONPATH — Bodyweight Mastery",
+  "short_name": "IRONPATH",
+  "description": "BWF progression trainer: 10 chains, test-out gates, 3-day full body.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0c0e",
+  "theme_color": "#0b0c0e",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
