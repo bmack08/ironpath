@@ -261,10 +261,12 @@ function renderTrain() {
         return [c.id, new Array(level.scheme.sets).fill(null)];
       })),
       amrap: {},
+      mods: {},
     };
     save();
   }
   const ses = state.activeSession;
+  if (!ses.mods) ses.mods = {};   // sessions saved before v3
   const totalSets = Object.values(ses.log).reduce((s, a) => s + a.length, 0);
   const doneSets = Object.values(ses.log).reduce((s, a) => s + a.filter(x => x !== null).length, 0);
   const pct = totalSets ? doneSets / totalSets : 0;
@@ -283,6 +285,12 @@ function renderTrain() {
         </button>`).join('')}
     </div>
     <p class="day-desc reveal" style="animation-delay:90ms">${day.desc}</p>
+
+    <p class="set-hint reveal" style="animation-delay:100ms">
+      TAP a set when done at target · TAP AGAIN to subtract and log what you actually got ·
+      ⇄ MOD swaps in an equipment-free equivalent · Short on time? Superset the pairs
+      (pull set → rest → legs set), drop to 2 sets before you skip an exercise, and cut core first — never the pairs.
+    </p>
 
     <div class="session-bar reveal" style="animation-delay:120ms">
       <span class="mono" style="font-size:11px;letter-spacing:2px;color:var(--faint)">SESSION</span>
@@ -325,6 +333,10 @@ function exCard(cid, block) {
       <p class="ex-cue">You've passed every level on this chart. Maintain with 2 hard sets, or chase the elite variations.</p></div>`;
   }
 
+  const subs = subsFor(cid, level.name);
+  const modIdx = ses.mods ? ses.mods[cid] : undefined;
+  const sub = (modIdx !== undefined && subs[modIdx]) ? subs[modIdx] : null;
+
   const pills = log.map((val, si) => {
     const isAmrap = isTest && si === log.length - 1 && block.id !== 'skill';
     if (isAmrap) {
@@ -337,22 +349,27 @@ function exCard(cid, block) {
         <button class="amrap-btn" onclick="bumpAmrap('${cid}',1)">+</button>
       </span>`;
     }
-    return `<button class="set-pill ${val !== null ? 'logged' : ''}"
+    const partial = val !== null && val < tgt;
+    return `<button class="set-pill ${val !== null ? 'logged' : ''} ${partial ? 'partial' : ''}"
       onclick="logSet('${cid}',${si},${restSec},false)"
-      title="Tap when the set is done">${val !== null ? '✓ ' : ''}${fmtPill(level.scheme, tgt)}</button>`;
+      title="Tap = done at target · tap again = −1 to log what you actually got">${val !== null ? (partial ? '' : '✓ ') + fmtPill(level.scheme, val) : fmtPill(level.scheme, tgt)}</button>`;
   }).join('');
 
   return `
   <div class="ex-card ${allDone ? 'done' : ''}">
     <div class="ex-top">
       <div>
-        <div class="ex-chain">${c.short} · LV ${st.level + 1}/${c.levels.length}</div>
-        <div class="ex-name">${level.name}</div>
+        <div class="ex-chain">${c.short} · LV ${st.level + 1}/${c.levels.length}${sub ? ' · <span class="mod-flag">MOD</span>' : ''}</div>
+        <div class="ex-name">${sub ? sub.name : level.name}</div>
       </div>
       <div class="ex-target">${fmtTarget(level.scheme, tgt)}${st.ready ? ' ⚡' : ''}</div>
     </div>
-    <p class="ex-cue">${level.cue}</p>
-    <div class="set-row">${pills}</div>
+    <p class="ex-cue">${sub ? sub.cue : level.cue}</p>
+    <div class="set-row">
+      ${pills}
+      ${subs.length ? `<button class="mod-btn ${sub ? 'on' : ''}" onclick="cycleMod('${cid}')"
+        title="No equipment? Swap in an equivalent — sets still count, the test-out gate stays on the real exercise">⇄ MOD</button>` : ''}
+    </div>
   </div>`;
 }
 
@@ -370,11 +387,35 @@ function logSet(cid, si, restSec, isAmrap) {
   const st = state.chains[cid];
   const { level } = currentLevel(cid);
   const tgt = dayTarget(level.scheme, st.target, trainDay);
-  if (ses.log[cid][si] !== null) {          // un-log
-    ses.log[cid][si] = null;
-  } else {
-    ses.log[cid][si] = isAmrap ? (ses.amrap[cid] ?? tgt) : tgt;
+  const cur = ses.log[cid][si];
+  if (isAmrap) {                             // AMRAP has its own +/- — tap just toggles
+    ses.log[cid][si] = cur !== null ? null : (ses.amrap[cid] ?? tgt);
+    if (ses.log[cid][si] !== null) startRest(restSec);
+  } else if (cur === null) {                 // first tap: done at target
+    ses.log[cid][si] = tgt;
     startRest(restSec);
+  } else {                                   // further taps: −1 each, down to un-logged
+    const step = stepFor(level.scheme);
+    const nv = cur - step;
+    ses.log[cid][si] = nv >= step ? nv : null;
+  }
+  save();
+  renderTrain();
+}
+
+function cycleMod(cid) {
+  const ses = state.activeSession;
+  const { level } = currentLevel(cid);
+  const subs = subsFor(cid, level.name);
+  if (!subs.length) return;
+  const cur = ses.mods[cid];
+  const next = cur === undefined ? 0 : (cur + 1 < subs.length ? cur + 1 : undefined);
+  if (next === undefined) {
+    delete ses.mods[cid];
+    toast(`Back to the real thing: ${level.name}.`);
+  } else {
+    ses.mods[cid] = next;
+    toast(`MOD: ${subs[next].name} — counts toward the chain, but the gate is still ${level.name}.`);
   }
   save();
   renderTrain();
@@ -405,7 +446,10 @@ function finishSession() {
     const { level, complete } = currentLevel(c.id);
     if (complete) continue;
     const log = ses.log[c.id];
-    const allHit = log.length && log.every(x => x !== null);
+    const tgt = dayTarget(level.scheme, st.target, ses.day);
+    // advance only when every set was logged AT OR ABOVE target —
+    // partial sets bank the work but the target waits for you
+    const allHit = log.length && log.every(x => x !== null && x >= tgt);
     if (!allHit) continue;
     // overload engine: heavy/test days move the target
     if (ses.day !== 'B') {

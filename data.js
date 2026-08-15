@@ -640,5 +640,87 @@ const RECOVERY = [
     body: 'Proven: sleep, protein, managed volume, deloads, walking. Marginal: massage, sauna, contrast showers (feel nice, small effect). Counterproductive: ice baths right after strength work can blunt the adaptation signal — save cold exposure for rest days if you love it.' },
 ];
 
+/* ---------- Equipment substitutions (MOD button) ----------
+   Keyed by 'chainId:Level Name'. Same movement pattern, no special equipment.
+   Sets logged on a MOD still count toward the chain — but the TEST-OUT GATE
+   must always be passed on the real exercise. */
+
+const SUBS = {
+  'row:Vertical Row': [
+    { name: 'Towel Doorframe Row', cue: 'Towel around a door handle or post, lean back, row chest to hands.' },
+    { name: 'Band Row', cue: 'Band anchored at chest height, row with a hard shoulder-blade squeeze.' } ],
+  'row:Incline Row': [
+    { name: 'Table Row', cue: 'Lie under a sturdy table, grab the edge, pull chest to the lip.' },
+    { name: 'Backpack Bent-Over Row', cue: 'Heavy backpack, flat back, row to your hip. 45° torso.' } ],
+  'row:Horizontal Row': [
+    { name: 'Table Row (feet raised)', cue: 'Under-table row with feet on a chair to get horizontal.' },
+    { name: 'Heavy Backpack Row', cue: 'Load the pack heavy, strict bent-over rows, 2s squeeze at top.' } ],
+  'row:Wide Row': [
+    { name: 'Wide Backpack Row', cue: 'Bent-over rows, elbows flared to ~60°, slow negatives.' } ],
+  'pullup:Scapular Shrug': [
+    { name: 'Band Scap Pulldown', cue: 'Band overhead, arms straight, pull shoulder blades down and hold 2s.' },
+    { name: 'Table Scap Row', cue: 'Under a table, arms straight, pinch shoulder blades only — no elbow bend.' } ],
+  'pullup:Arch Hang': [
+    { name: 'Band Arch Pull', cue: 'Band overhead, pull to chest with chest driven up, 3s hold.' } ],
+  'pullup:Pull Up Negative': [
+    { name: 'Towel Row Negative', cue: 'Steepest towel row you can manage, 5s negatives — then find a real bar (playground, door bar) for the gate.' } ],
+  'pushup:RTO Push Up': [
+    { name: 'Deficit Pseudo Planche PU', cue: 'Hands on books/blocks at waist, max lean, extra-deep push ups.' } ],
+  'dip:PB Support Hold': [
+    { name: 'Chair Support Hold', cue: 'Two sturdy chair backs or a kitchen-counter corner. Lock out, shoulders down.' } ],
+  'dip:Dip Negative': [
+    { name: 'Deep Bench Dip Negative', cue: 'Hands on a bench behind you, feet elevated, 5s negatives — full depth.' } ],
+  'dip:Dip': [
+    { name: 'Deep Bench Dip (feet up)', cue: 'Feet on a second chair, hips close to the bench, full range. Add a backpack for load.' },
+    { name: 'Counter-Corner Dip', cue: 'Kitchen counter corner as parallel bars — lean forward, full depth.' } ],
+  'dip:L-Dip': [
+    { name: 'Bench L-Dip', cue: 'Bench dips with legs held straight out in an L.' } ],
+  'dip:Bulgarian Dip': [
+    { name: 'Weighted Deep Bench Dip', cue: 'Heavy backpack on lap, elbows out wide, chest drops between hands.' } ],
+  'squat:Assisted Squat': [
+    { name: 'Doorframe Squat', cue: 'Hold both sides of a doorframe, sit deep, minimal arm help.' } ],
+  'squat:Bulgarian Split Squat': [
+    { name: 'Stair Split Squat', cue: 'Rear foot on a stair or sturdy box instead of a bench.' },
+    { name: 'Reverse Lunge (loaded)', cue: 'Backpack on, long stride back, knee kisses floor. Alternate legs.' } ],
+  'squat:Assisted Pistol Squat': [
+    { name: 'Doorframe Pistol', cue: 'Fingertips on the doorframe for balance only, full-depth one-leg squat.' } ],
+  'hinge:Reverse Hyperextension': [
+    { name: 'Glute Bridge March', cue: 'Bridge up hard, march slow without hips dropping. 2s squeeze per step.' },
+    { name: 'Reverse Lunge', cue: 'Long stride, push through the front heel, glutes do the standing-up.' } ],
+  'hinge:One Leg Deadlift': [
+    { name: 'Backpack OL Deadlift', cue: 'Same movement, hold a loaded backpack for extra hinge load.' } ],
+  'hinge:90° Hip Nordic Curl': [
+    { name: 'Couch Nordic (90°)', cue: 'Ankles wedged under the couch, hips bent 90°, lower slow.' },
+    { name: 'Towel Leg Curl', cue: 'Heels on a towel on smooth floor, bridge up, slide heels out and back.' } ],
+  'hinge:45° Hip Nordic Curl': [
+    { name: 'Couch Nordic (45°)', cue: 'Same couch anchor, straighter hips — much harder.' } ],
+  'hinge:Nordic Curl Negative': [
+    { name: 'Couch Nordic Negative', cue: 'Ankles under the couch, body straight, lower as slow as possible.' } ],
+  'hinge:Nordic Curl': [
+    { name: 'Couch Nordic', cue: 'Full nordic with the couch as your anchor.' } ],
+  'lsit:Foot Supported L-Sit': [
+    { name: 'Floor Seated Leg Lift', cue: 'Sit tall, hands on floor (or books) by hips, lift heels, push down hard.' } ],
+  'lsit:Tuck L-Sit': [
+    { name: 'Chair Tuck Hold', cue: 'Between two sturdy chair seats, knees tucked, feet off the floor.' } ],
+  'hang:Hanging Knees to Chest': [
+    { name: 'Lying Knee Tuck', cue: 'On your back, pull knees to chest and lift hips off the floor each rep.' } ],
+  'hang:Hanging Bent Leg Raise': [
+    { name: 'Lying Bent Leg Raise', cue: 'On your back, hands under hips, bent legs up and over your chest.' } ],
+  'hang:Hanging Leg Raise': [
+    { name: 'Lying Straight Leg Raise + Hip Lift', cue: 'Straight legs to vertical, then lift hips toward the ceiling.' } ],
+  'hang:Toes to Bar': [
+    { name: 'Strict V-Up', cue: 'Straight body to a full V, fingers to toes, slow negative down.' } ],
+  'antiext:Knees Ab Wheel': [
+    { name: 'Towel Rollout (knees)', cue: 'Towel or sliders under hands on smooth floor — same rollout, same hollow body.' } ],
+  'antiext:Ab Wheel Negative': [
+    { name: 'Towel Rollout Negative', cue: 'From standing, slide the towel out slow to flat.' } ],
+  'antiext:Standing Ab Wheel': [
+    { name: 'Standing Towel Rollout', cue: 'Full standing slide-out and return on smooth floor.' } ],
+};
+
+function subsFor(chainId, levelName) {
+  return SUBS[`${chainId}:${levelName}`] || [];
+}
+
 /* Escape-beginner 30-day mission shown on dashboard */
 const MISSION_DAYS = 30;
