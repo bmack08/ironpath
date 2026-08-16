@@ -215,11 +215,16 @@ let activeView = 'today';
 let ladderChain = 'row';
 
 function setView(v) {
-  activeView = v;
-  state.view = v;
-  $$('.rail-link').forEach(b => b.classList.toggle('active', b.dataset.view === v));
-  render();
-  window.scrollTo({ top: 0, behavior: 'instant' });
+  const apply = () => {
+    activeView = v;
+    state.view = v;
+    $$('.rail-link').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+    render();
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+  // smooth cross-fade between tabs where the browser supports it
+  if (document.startViewTransition && v !== activeView) document.startViewTransition(apply);
+  else apply();
   save();
 }
 
@@ -257,12 +262,12 @@ function renderToday() {
     ? `<div class="hero-date">${dateLine}</div>
        <h1 class="hero-title">DELOAD —<br><span class="accent">ON PURPOSE</span></h1>
        <p class="hero-tag">${state.deload.remaining} easy session${state.deload.remaining > 1 ? 's' : ''} left: half sets, ~70% targets, nothing near failure. This is where six weeks of work turns into strength.</p>
-       <div class="hero-actions"><button class="btn primary" onclick="setView('train')">START DELOAD SESSION ▸</button></div>`
+       <div class="hero-actions"><button class="btn primary" onclick="startFocus()">START DELOAD SESSION ▸</button></div>`
     : `<div class="hero-date">${dateLine}</div>
        <h1 class="hero-title">SESSION ${dayKey} —<br><span class="accent">${day.name}</span></h1>
        <p class="hero-tag">${day.tagline}</p>
        <div class="hero-actions">
-         <button class="btn primary" onclick="setView('train')">START SESSION ▸</button>
+         <button class="btn primary" onclick="startFocus()">START SESSION ▸</button>
          ${readyCount ? `<button class="btn ghost" onclick="setView('ladders')">⚡ ${readyCount} TEST-OUT${readyCount > 1 ? 'S' : ''} READY</button>` : ''}
        </div>`;
 
@@ -391,10 +396,8 @@ function renderLog() {
 
 let trainDay = null;
 
-function renderTrain() {
+function ensureSession() {
   if (!trainDay) trainDay = state.activeSession ? state.activeSession.day : nextDayKey();
-  const day = DAYS[trainDay];
-  // (re)build session log if needed
   if (!state.activeSession || state.activeSession.day !== trainDay) {
     state.activeSession = {
       day: trainDay, date: todayStr(),
@@ -407,8 +410,13 @@ function renderTrain() {
     };
     save();
   }
-  const ses = state.activeSession;
-  if (!ses.mods) ses.mods = {};   // sessions saved before v3
+  if (!state.activeSession.mods) state.activeSession.mods = {};   // sessions saved before v3
+  return state.activeSession;
+}
+
+function renderTrain() {
+  const ses = ensureSession();
+  const day = DAYS[trainDay];
   const totalSets = Object.values(ses.log).reduce((s, a) => s + a.length, 0);
   const doneSets = Object.values(ses.log).reduce((s, a) => s + a.filter(x => x !== null).length, 0);
   const pct = totalSets ? doneSets / totalSets : 0;
@@ -442,9 +450,10 @@ function renderTrain() {
     </p>
 
     <div class="session-bar reveal" style="animation-delay:120ms">
+      <button class="btn primary small" onclick="enterFocus()">▶ FOCUS</button>
       <span class="mono" style="font-size:11px;letter-spacing:2px;color:var(--faint)">SESSION</span>
-      <div class="track"><div class="fill" style="width:${pct * 100}%"></div></div>
-      <span class="pct">${Math.round(pct * 100)}%</span>
+      <div class="track"><div class="fill" id="sesFill" style="width:${pct * 100}%"></div></div>
+      <span class="pct" id="sesPct">${Math.round(pct * 100)}%</span>
     </div>
 
     <div class="warmup-box reveal" style="animation-delay:150ms">
@@ -492,20 +501,20 @@ function exCard(cid, block) {
       const cur = ses.amrap[cid] ?? tgt;
       return `<span class="amrap-ctrl">
         <button class="amrap-btn" onclick="bumpAmrap('${cid}',-1)">−</button>
-        <button class="set-pill amrap-pill ${val !== null ? 'logged' : ''}"
+        <button class="set-pill amrap-pill ${val !== null ? 'logged' : ''}" id="pill-${cid}-${si}"
           onclick="logSet('${cid}',${si},${restSec},true)"
           title="AMRAP — as many clean reps as possible">${val !== null ? val : cur}·AMRAP</button>
         <button class="amrap-btn" onclick="bumpAmrap('${cid}',1)">+</button>
       </span>`;
     }
     const partial = val !== null && val < tgt;
-    return `<button class="set-pill ${val !== null ? 'logged' : ''} ${partial ? 'partial' : ''}"
+    return `<button class="set-pill ${val !== null ? 'logged' : ''} ${partial ? 'partial' : ''}" id="pill-${cid}-${si}"
       onclick="logSet('${cid}',${si},${restSec},false)"
       title="Tap = done at target · tap again = −1 to log what you actually got">${val !== null ? (partial ? '' : '✓ ') + fmtPill(level.scheme, val) : fmtPill(level.scheme, tgt)}</button>`;
   }).join('');
 
   return `
-  <div class="ex-card ${allDone ? 'done' : ''}">
+  <div class="ex-card ${allDone ? 'done' : ''}" id="ex-${cid}" data-block="${block.id}">
     <div class="ex-top">
       <div>
         <div class="ex-chain">${c.short} · LV ${st.level + 1}/${c.levels.length}${sub ? ' · <span class="mod-flag">MOD</span>' : ''}</div>
@@ -537,19 +546,49 @@ function logSet(cid, si, restSec, isAmrap) {
   const { level } = currentLevel(cid);
   const tgt = dayTarget(level.scheme, st.target, trainDay);
   const cur = ses.log[cid][si];
+  let firstLog = false;
   if (isAmrap) {                             // AMRAP has its own +/- — tap just toggles
     ses.log[cid][si] = cur !== null ? null : (ses.amrap[cid] ?? tgt);
-    if (ses.log[cid][si] !== null) startRest(restSec);
+    firstLog = ses.log[cid][si] !== null;
   } else if (cur === null) {                 // first tap: done at target
     ses.log[cid][si] = tgt;
-    startRest(restSec);
+    firstLog = true;
   } else {                                   // further taps: −1 each, down to un-logged
     const step = stepFor(level.scheme);
     const nv = cur - step;
     ses.log[cid][si] = nv >= step ? nv : null;
   }
+  if (firstLog) { startRest(restSec); buzz(30); }
   save();
-  renderTrain();
+  updateTrainDom(cid, si);   // targeted update — no full re-render, no animation replay
+}
+
+/* surgically refresh one pill + its card + the session bar */
+function updateTrainDom(cid, si) {
+  const pill = document.getElementById(`pill-${cid}-${si}`);
+  const ses = state.activeSession;
+  if (!pill || !ses) { renderTrain(); return; }
+  const st = state.chains[cid];
+  const { level } = currentLevel(cid);
+  const tgt = dayTarget(level.scheme, st.target, trainDay);
+  const val = ses.log[cid][si];
+  const isAmrap = pill.classList.contains('amrap-pill');
+  const partial = val !== null && val < tgt && !isAmrap;
+  pill.classList.toggle('logged', val !== null);
+  pill.classList.toggle('partial', partial);
+  if (isAmrap) {
+    pill.textContent = `${val !== null ? val : (ses.amrap[cid] ?? tgt)}·AMRAP`;
+  } else {
+    pill.textContent = val !== null ? `${partial ? '' : '✓ '}${fmtPill(level.scheme, val)}` : fmtPill(level.scheme, tgt);
+  }
+  const card = document.getElementById(`ex-${cid}`);
+  if (card) card.classList.toggle('done', ses.log[cid].every(x => x !== null));
+  const totalSets = Object.values(ses.log).reduce((s, a) => s + a.length, 0);
+  const doneSets = Object.values(ses.log).reduce((s, a) => s + a.filter(x => x !== null).length, 0);
+  const fill = document.getElementById('sesFill');
+  const pctEl = document.getElementById('sesPct');
+  if (fill) fill.style.width = `${totalSets ? (doneSets / totalSets) * 100 : 0}%`;
+  if (pctEl) pctEl.textContent = `${totalSets ? Math.round((doneSets / totalSets) * 100) : 0}%`;
 }
 
 function cycleMod(cid) {
@@ -567,7 +606,12 @@ function cycleMod(cid) {
     toast(`MOD: ${subs[next].name} — counts toward the chain, but the gate is still ${level.name}.`);
   }
   save();
-  renderTrain();
+  // re-render just this card (name/cue/badge change)
+  const card = document.getElementById(`ex-${cid}`);
+  const block = SESSION_BLOCKS.find(b => b.id === card?.dataset.block);
+  if (card && block) card.outerHTML = exCard(cid, block);
+  else renderTrain();
+  if (focusOn) focusRender();
 }
 
 function bumpAmrap(cid, d) {
@@ -580,7 +624,7 @@ function bumpAmrap(cid, d) {
   const li = ses.log[cid].length - 1;
   if (ses.log[cid][li] !== null) ses.log[cid][li] = ses.amrap[cid];
   save();
-  renderTrain();
+  updateTrainDom(cid, li);
 }
 
 function finishSession() {
@@ -588,6 +632,8 @@ function finishSession() {
   if (!ses) return;
   const doneSets = Object.values(ses.log).reduce((s, a) => s + a.filter(x => x !== null).length, 0);
   if (!doneSets) { toast('Log at least one set before banking the session.'); return; }
+  if (focusOn) exitFocus();
+  releaseWakeLock();
 
   const wasDeload = deloadActive();
   const newlyReady = [];
@@ -712,6 +758,225 @@ function snoozeDeload() {
   save();
   toast('Deload snoozed for 3 sessions. If the stall continues, take it.');
   render();
+}
+
+/* ---------- FOCUS MODE — one exercise at a time ---------- */
+
+let focusOn = false;
+let focusVal = null;          // rep/second value armed on the big button
+let focusResting = null;      // {left, total, next} while the inline rest runs
+let focusRestTimer = null;
+
+function buildSteps() {
+  const ses = state.activeSession;
+  const steps = [];
+  for (const block of SESSION_BLOCKS) {
+    const chains = block.chains.filter(cid => !currentLevel(cid).complete);
+    const maxSets = Math.max(0, ...chains.map(cid => ses.log[cid].length));
+    for (let s = 0; s < maxSets; s++) {
+      for (const cid of chains) {
+        if (s < ses.log[cid].length) steps.push({ cid, si: s, block });
+      }
+    }
+  }
+  return steps;
+}
+
+function startFocus() {
+  setView('train');
+  enterFocus();
+}
+
+function enterFocus() {
+  ensureSession();
+  const ses = state.activeSession;
+  const steps = buildSteps();
+  let idx = Math.min(ses.focusIdx ?? 0, steps.length);
+  while (idx < steps.length && ses.log[steps[idx].cid][steps[idx].si] !== null) idx++;
+  ses.focusIdx = idx;
+  focusOn = true;
+  focusVal = null;
+  focusResting = null;
+  $('#focusOverlay').hidden = false;
+  document.body.style.overflow = 'hidden';
+  acquireWakeLock();
+  focusRender();
+  save();
+}
+
+function exitFocus() {
+  focusOn = false;
+  clearInterval(focusRestTimer);
+  focusResting = null;
+  $('#focusOverlay').hidden = true;
+  document.body.style.overflow = '';
+  releaseWakeLock();
+  if (activeView === 'train') renderTrain();   // sync the list view
+}
+
+function focusRender() {
+  const ses = state.activeSession;
+  if (!ses) { exitFocus(); return; }
+  const steps = buildSteps();
+  const idx = ses.focusIdx ?? 0;
+  const day = DAYS[ses.day];
+  const inner = $('#focusInner');
+  const doneSets = Object.values(ses.log).reduce((s, a) => s + a.filter(x => x !== null).length, 0);
+  const totalSets = Object.values(ses.log).reduce((s, a) => s + a.length, 0);
+
+  const header = `
+    <div class="focus-head">
+      <button class="focus-x" onclick="exitFocus()" title="Back to list view">✕</button>
+      <div class="focus-title mono">DAY ${ses.day} · ${day.name}${deloadActive() ? ' · DELOAD' : ''}</div>
+      <div class="focus-count mono">${Math.min(idx + 1, steps.length)}/${steps.length}</div>
+    </div>
+    <div class="focus-track"><div class="focus-fill" style="width:${totalSets ? (doneSets / totalSets) * 100 : 0}%"></div></div>`;
+
+  /* --- resting screen --- */
+  if (focusResting) {
+    const r = focusResting;
+    const circ = 2 * Math.PI * 90;
+    inner.innerHTML = `${header}
+      <div class="focus-stage focus-rest-stage">
+        <div class="focus-block-label">REST</div>
+        <div class="focus-rest-ring">
+          <svg viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="90" class="frr-track"/>
+            <circle cx="100" cy="100" r="90" class="frr-fill" id="frrFill"
+              stroke-dasharray="${circ}" stroke-dashoffset="${circ * (1 - r.left / r.total)}"/>
+          </svg>
+          <div class="focus-rest-num mono" id="frrNum">${r.left}</div>
+        </div>
+        ${r.next ? `<div class="focus-next">NEXT UP<b>${r.next}</b></div>` : ''}
+        <button class="btn ghost" onclick="focusSkipRest()">SKIP REST ▸</button>
+      </div>`;
+    return;
+  }
+
+  /* --- session complete screen --- */
+  if (idx >= steps.length) {
+    inner.innerHTML = `${header}
+      <div class="focus-stage">
+        <div class="focus-block-label" style="color:var(--pass)">ALL SETS DONE</div>
+        <div class="focus-exname" style="font-size:clamp(40px,10vw,64px)">SESSION<br>COMPLETE</div>
+        <p class="focus-cue">${doneSets} sets in the bank. Finish to run the evaluation and start the recovery clock.</p>
+        <button class="focus-done-btn" onclick="finishSession()">FINISH SESSION — BANK IT</button>
+        <button class="btn ghost" style="margin-top:12px" onclick="exitFocus()">back to list view</button>
+      </div>`;
+    return;
+  }
+
+  /* --- exercise step screen --- */
+  const { cid, si, block } = steps[idx];
+  const c = chainById(cid);
+  const st = state.chains[cid];
+  const { level } = currentLevel(cid);
+  const subs = subsFor(cid, level.name);
+  const sub = (ses.mods[cid] !== undefined && subs[ses.mods[cid]]) ? subs[ses.mods[cid]] : null;
+  const tgt = dayTarget(level.scheme, st.target, ses.day);
+  const isAmrap = ses.day === 'C' && si === ses.log[cid].length - 1 && block.id !== 'skill' && !deloadActive();
+  if (focusVal === null) focusVal = isAmrap ? (ses.amrap[cid] ?? tgt) : tgt;
+  const unit = level.scheme.type === 'hold' ? 'SECONDS' :
+               level.scheme.type === 'neg' ? 'NEGATIVES' :
+               level.scheme.type === 'reps-side' ? 'REPS / SIDE' : 'REPS';
+
+  const dots = ses.log[cid].map((v, i) =>
+    `<span class="fdot ${v !== null ? 'on' : ''} ${i === si ? 'cur' : ''}"></span>`).join('');
+
+  inner.innerHTML = `${header}
+    <div class="focus-stage">
+      <div class="focus-block-label">${block.title.toUpperCase()}${block.id.startsWith('pair') ? ' · SUPERSET' : ''}${isAmrap ? ' · <span style="color:var(--ember-hi)">AMRAP</span>' : ''}</div>
+      <div class="focus-chain mono">${c.short} · LV ${st.level + 1}/${c.levels.length} · SET ${si + 1} OF ${ses.log[cid].length}</div>
+      <div class="focus-exname">${sub ? sub.name : level.name}${sub ? ' <span class="mod-flag">MOD</span>' : ''}</div>
+      <p class="focus-cue">${sub ? sub.cue : level.cue}</p>
+      <div class="focus-dots">${dots}</div>
+      <div class="focus-target">
+        <button class="focus-adj" onclick="focusAdj(-1)">−</button>
+        <div class="focus-num">
+          <b class="mono" id="focusNum">${focusVal}</b>
+          <span>${unit}${isAmrap ? ' · GO TO CLEAN MAX' : ''}</span>
+        </div>
+        <button class="focus-adj" onclick="focusAdj(1)">+</button>
+      </div>
+      <button class="focus-done-btn" onclick="focusLog()">✓ SET DONE</button>
+      <div class="focus-tools">
+        ${subs.length ? `<button class="btn ghost small" onclick="cycleMod('${cid}')">⇄ MOD</button>` : ''}
+        <button class="btn ghost small" onclick="focusSkip()">SKIP SET ▸</button>
+      </div>
+    </div>`;
+}
+
+function focusAdj(d) {
+  const ses = state.activeSession;
+  const steps = buildSteps();
+  const { cid } = steps[ses.focusIdx];
+  const { level } = currentLevel(cid);
+  focusVal = Math.max(stepFor(level.scheme), Math.min(999, focusVal + d * stepFor(level.scheme)));
+  const el = document.getElementById('focusNum');
+  if (el) el.textContent = focusVal;
+}
+
+function focusLog() {
+  const ses = state.activeSession;
+  const steps = buildSteps();
+  const idx = ses.focusIdx;
+  const { cid, si, block } = steps[idx];
+  const isAmrap = ses.day === 'C' && si === ses.log[cid].length - 1 && block.id !== 'skill' && !deloadActive();
+  ses.log[cid][si] = focusVal;
+  if (isAmrap) ses.amrap[cid] = focusVal;
+  buzz(30);
+  ses.focusIdx = idx + 1;
+  focusVal = null;
+  save();
+  if (ses.focusIdx >= steps.length) { focusRender(); return; }   // straight to the finish screen
+  const next = steps[ses.focusIdx];
+  const restSec = block.id === 'core' ? DAYS[ses.day].restCore : DAYS[ses.day].restPair;
+  const nc = chainById(next.cid);
+  const nlvl = currentLevel(next.cid).level;
+  const nsub = subsFor(next.cid, nlvl.name)[ses.mods[next.cid]];
+  focusRestStart(restSec, `${nsub ? nsub.name : nlvl.name} · set ${next.si + 1}`);
+}
+
+function focusSkip() {
+  const ses = state.activeSession;
+  ses.focusIdx = (ses.focusIdx ?? 0) + 1;
+  focusVal = null;
+  save();
+  focusRender();
+}
+
+function focusRestStart(seconds, nextLabel) {
+  clearInterval(focusRestTimer);
+  focusResting = { left: seconds, total: seconds, next: nextLabel };
+  focusRender();
+  focusRestTimer = setInterval(() => {
+    if (!focusResting) { clearInterval(focusRestTimer); return; }
+    focusResting.left--;
+    const r = focusResting;
+    if (r.left <= 3 && r.left > 0) beep([660], 0.07);
+    if (r.left <= 0) {
+      clearInterval(focusRestTimer);
+      focusResting = null;
+      beep([880, 1318.5], 0.12, 0.28);   // same chime, a touch louder
+      buzz([80, 60, 80]);
+      focusRender();
+      return;
+    }
+    const num = document.getElementById('frrNum');
+    const fill = document.getElementById('frrFill');
+    if (num) num.textContent = r.left;
+    if (fill) {
+      const circ = 2 * Math.PI * 90;
+      fill.style.strokeDashoffset = circ * (1 - r.left / r.total);
+      fill.style.stroke = r.left <= 5 ? 'var(--pass)' : 'var(--ember)';
+    }
+  }, 1000);
+}
+
+function focusSkipRest() {
+  clearInterval(focusRestTimer);
+  focusResting = null;
+  focusRender();
 }
 
 /* ---------- LADDERS ---------- */
@@ -980,6 +1245,7 @@ function celebrate(kicker, name, nextHtml) {
   $('#celebrateOverlay').hidden = false;
   confetti();
   beep([880, 1174.7, 1568], 0.12);
+  buzz([50, 40, 50, 40, 120]);
 }
 
 function confetti() {
@@ -1042,7 +1308,8 @@ function startRest(seconds) {
     if (left <= 0) {
       clearInterval(restInterval);
       dock.hidden = true;
-      beep([880, 1318.5], 0.12);
+      beep([880, 1318.5], 0.12, 0.28);   // same chime, a touch louder
+      buzz([80, 60, 80]);
       toast('Rest over — next set. ⚒️');
       return;
     }
@@ -1053,7 +1320,7 @@ function startRest(seconds) {
 /* ---------- audio + toast ---------- */
 
 let audioCtx = null;
-function beep(freqs, dur) {
+function beep(freqs, dur, vol = 0.12) {
   try {
     audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
     freqs.forEach((f, i) => {
@@ -1061,7 +1328,7 @@ function beep(freqs, dur) {
       const g = audioCtx.createGain();
       o.type = 'sine'; o.frequency.value = f;
       g.gain.setValueAtTime(0.001, audioCtx.currentTime + i * dur);
-      g.gain.exponentialRampToValueAtTime(0.12, audioCtx.currentTime + i * dur + 0.02);
+      g.gain.exponentialRampToValueAtTime(vol, audioCtx.currentTime + i * dur + 0.02);
       g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (i + 1) * dur + 0.05);
       o.connect(g).connect(audioCtx.destination);
       o.start(audioCtx.currentTime + i * dur);
@@ -1069,6 +1336,29 @@ function beep(freqs, dur) {
     });
   } catch { /* audio blocked until first interaction — fine */ }
 }
+
+/* haptics — no-op where unsupported (iOS, desktop) */
+function buzz(pattern) {
+  try { if (navigator.vibrate) navigator.vibrate(pattern); } catch { /* fine */ }
+}
+
+/* keep the screen awake mid-session (auto-released when tab hides) */
+let wakeLock = null;
+async function acquireWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    }
+  } catch { /* denied — fine */ }
+}
+function releaseWakeLock() {
+  try { if (wakeLock) wakeLock.release(); } catch { /* fine */ }
+  wakeLock = null;
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && focusOn) acquireWakeLock();
+});
 
 let toastTimer = null;
 function toast(msg) {

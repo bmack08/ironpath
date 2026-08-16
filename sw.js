@@ -1,7 +1,7 @@
 /* IRONPATH service worker — cache-first app shell so the app works
    with zero connectivity once installed. Bump VERSION to ship updates. */
 
-const VERSION = 'ironpath-v5';
+const VERSION = 'ironpath-v6';
 const META_CACHE = 'ironpath-meta';   // survives version bumps — reminder state lives here
 const SHELL = [
   './',

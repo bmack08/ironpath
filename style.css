@@ -708,6 +708,99 @@ body {
 .legal-body ul { margin-left: 18px; }
 .legal-body li { padding: 3px 0; }
 
+/* ============ FOCUS MODE ============ */
+
+.focus {
+  position: fixed; inset: 0; z-index: 180;
+  background:
+    radial-gradient(1000px 500px at 50% -20%, rgba(255, 92, 31, 0.08), transparent 60%),
+    var(--bg);
+  display: flex; justify-content: center;
+  overflow-y: auto;
+}
+.focus-inner {
+  width: min(560px, 100%);
+  display: flex; flex-direction: column;
+  padding: 18px 22px calc(28px + env(safe-area-inset-bottom, 0px));
+  min-height: 100%;
+}
+.focus-head { display: flex; align-items: center; gap: 14px; }
+.focus-x {
+  appearance: none; cursor: pointer;
+  width: 40px; height: 40px; border-radius: 10px;
+  border: 1px solid var(--line2); background: var(--panel); color: var(--muted);
+  font-size: 16px;
+}
+.focus-x:hover { color: var(--ink); border-color: var(--ink); }
+.focus-title { flex: 1; font-size: 11px; letter-spacing: 2.5px; color: var(--muted); }
+.focus-count { font-size: 12px; color: var(--faint); }
+.focus-track { height: 4px; border-radius: 99px; background: var(--bg2); margin-top: 12px; overflow: hidden; }
+.focus-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--ember), var(--pass)); transition: width 0.4s cubic-bezier(0.2, 0.7, 0.2, 1); }
+
+.focus-stage {
+  flex: 1; display: flex; flex-direction: column;
+  justify-content: center; align-items: center; text-align: center;
+  gap: 14px; padding: 26px 0;
+  animation: step-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes step-in { from { opacity: 0; transform: translateX(26px); } }
+
+.focus-block-label { font-family: var(--mono); font-size: 11px; letter-spacing: 3px; color: var(--band-int); }
+.focus-chain { font-size: 11px; letter-spacing: 1.5px; color: var(--faint); }
+.focus-exname {
+  font-family: var(--disp);
+  font-size: clamp(34px, 9vw, 52px);
+  line-height: 1; letter-spacing: 1px; text-transform: uppercase;
+}
+.focus-cue { color: var(--muted); font-size: 14px; max-width: 420px; min-height: 3em; }
+.focus-dots { display: flex; gap: 9px; }
+.fdot {
+  width: 11px; height: 11px; border-radius: 50%;
+  background: var(--bg2); border: 1.5px solid var(--faint);
+}
+.fdot.on { background: var(--pass); border-color: var(--pass); }
+.fdot.cur { border-color: var(--ember); box-shadow: 0 0 10px rgba(255, 92, 31, 0.7); }
+
+.focus-target { display: flex; align-items: center; gap: 22px; margin: 6px 0; }
+.focus-adj {
+  appearance: none; cursor: pointer;
+  width: 62px; height: 62px; border-radius: 50%;
+  border: 1px solid var(--line2); background: var(--panel);
+  color: var(--ink); font-size: 26px; font-family: var(--mono);
+  transition: border-color 0.15s, transform 0.1s;
+}
+.focus-adj:active { transform: scale(0.92); border-color: var(--ember); }
+.focus-num b { font-size: clamp(72px, 20vw, 110px); font-weight: 600; line-height: 0.9; display: block; }
+.focus-num span { font-family: var(--mono); font-size: 10.5px; letter-spacing: 2.5px; color: var(--faint); }
+
+.focus-done-btn {
+  appearance: none; cursor: pointer;
+  width: 100%; max-width: 420px;
+  padding: 22px; border-radius: 16px;
+  border: 0; background: var(--ember); color: #0c0c0d;
+  font-family: var(--body); font-weight: 700; font-size: 17px; letter-spacing: 2px;
+  box-shadow: 0 10px 40px rgba(255, 92, 31, 0.35);
+  transition: transform 0.12s, box-shadow 0.2s;
+}
+.focus-done-btn:active { transform: scale(0.97); }
+.focus-tools { display: flex; gap: 12px; margin-top: 4px; }
+
+.focus-rest-stage { gap: 20px; }
+.focus-rest-ring { position: relative; width: min(62vw, 260px); }
+.focus-rest-ring svg { width: 100%; transform: rotate(-90deg); }
+.frr-track { fill: none; stroke: var(--bg2); stroke-width: 9; }
+.frr-fill {
+  fill: none; stroke: var(--ember); stroke-width: 9; stroke-linecap: round;
+  filter: drop-shadow(0 0 10px rgba(255, 92, 31, 0.6));
+  transition: stroke-dashoffset 1s linear;
+}
+.focus-rest-num {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-size: clamp(56px, 16vw, 84px); font-weight: 600;
+}
+.focus-next { font-family: var(--mono); font-size: 11px; letter-spacing: 2px; color: var(--faint); }
+.focus-next b { display: block; color: var(--ink); font-size: 14px; letter-spacing: 1px; margin-top: 4px; }
+
 /* ============ REST DOCK ============ */
 
 .rest-dock {
