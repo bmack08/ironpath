@@ -1,7 +1,8 @@
 /* IRONPATH service worker — cache-first app shell so the app works
    with zero connectivity once installed. Bump VERSION to ship updates. */
 
-const VERSION = 'ironpath-v4.1';
+const VERSION = 'ironpath-v5';
+const META_CACHE = 'ironpath-meta';   // survives version bumps — reminder state lives here
 const SHELL = [
   './',
   'index.html',
@@ -25,8 +26,55 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(
+        keys.filter((k) => k !== VERSION && k !== META_CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
+  );
+});
+
+/* ---------- training-day reminders (periodic background sync) ---------- */
+
+self.addEventListener('periodicsync', (e) => {
+  if (e.tag === 'ironpath-reminder') e.waitUntil(checkAndNotify());
+});
+
+async function checkAndNotify() {
+  try {
+    const cache = await caches.open(META_CACHE);
+    const res = await cache.match('meta');
+    if (!res) return;
+    const meta = await res.json();
+    if (!meta.remindersOn || !meta.last) return;
+    const hrs = (Date.now() - meta.last) / 3600000;
+    // at most one nudge per ~20h so it never becomes spam
+    if (meta.lastNotified && Date.now() - meta.lastNotified < 20 * 3600000) return;
+
+    let title = null, body = '';
+    if (hrs >= 68) {
+      title = '🔥 Streak on the line';
+      body = `${Math.round(hrs)}h since your last session. One 30-minute session tonight keeps the streak alive.`;
+    } else if (hrs >= 44) {
+      title = `Session ${meta.nextDay} tonight`;
+      body = `~48h since your last session — the recovery window is closing. Day ${meta.nextDay} · ${meta.nextName} is up.`;
+    }
+    if (!title) return;
+
+    meta.lastNotified = Date.now();
+    await cache.put('meta', new Response(JSON.stringify(meta)));
+    await self.registration.showNotification(title, {
+      body,
+      icon: 'icon-192.png',
+      badge: 'icon-192.png',
+      tag: 'ironpath-reminder',
+    });
+  } catch { /* never let a reminder failure break the SW */ }
+}
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((ws) => (ws.length ? ws[0].focus() : clients.openWindow('./')))
   );
 });
 

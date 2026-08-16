@@ -72,10 +72,72 @@ const LS_KEY = 'ironpath-state';
 function save() {
   state.updatedAt = Date.now();
   try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch { /* private mode */ }
+  mirrorMeta();
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     fetch('/api/state', { method: 'POST', body: JSON.stringify(state) }).catch(() => {});
   }, 250);
+}
+
+/* the service worker can't read localStorage — mirror what reminders need
+   into a cache entry it CAN read (preserving its own lastNotified stamp) */
+async function mirrorMeta() {
+  if (!('caches' in window)) return;
+  try {
+    const cache = await caches.open('ironpath-meta');
+    const prev = await cache.match('meta');
+    const old = prev ? await prev.json() : {};
+    const nd = nextDayKey();
+    await cache.put('meta', new Response(JSON.stringify({
+      remindersOn: !!state.remindersOn,
+      last: state.lastSessionAt || null,
+      nextDay: nd,
+      nextName: DAYS[nd].name,
+      lastNotified: old.lastNotified || null,
+    })));
+  } catch { /* cache unavailable — reminders just won't fire */ }
+}
+
+/* ---------- reminders ---------- */
+
+async function enableReminders() {
+  if (!('Notification' in window)) { toast('This browser does not support notifications.'); return; }
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') {
+    toast('Notifications are blocked — allow them in your browser settings, then try again.');
+    return;
+  }
+  state.remindersOn = true;
+  let bg = false;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    if ('periodicSync' in reg) {
+      await reg.periodicSync.register('ironpath-reminder', { minInterval: 12 * 60 * 60 * 1000 });
+      bg = true;
+    }
+  } catch { /* periodic sync denied — in-app nudges still work */ }
+  state.remindersBg = bg;
+  save();
+  toast(bg ? '🔔 Reminders on — you\'ll get a nudge when the 48h window closes.'
+           : '🔔 Reminders on — this browser only allows nudges while the app is open.');
+  render();
+}
+
+async function disableReminders() {
+  state.remindersOn = false;
+  save();
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    if ('periodicSync' in reg) await reg.periodicSync.unregister('ironpath-reminder');
+  } catch { /* fine */ }
+  toast('Reminders off.');
+  render();
+}
+
+function dismissReminders() {
+  state.remindersDismissed = true;
+  save();
+  render();
 }
 
 async function load() {
@@ -205,15 +267,30 @@ function renderToday() {
        </div>`;
 
   const rx = deloadCheck();
+  const hrsSince = state.lastSessionAt ? (Date.now() - state.lastSessionAt) / 3600000 : null;
+  const overdue = !trainedToday && hrsSince !== null && hrsSince >= 48;
+  const showRemindCard = !state.remindersOn && !state.remindersDismissed && state.sessionCount >= 1;
 
   stage.innerHTML = `
     <div class="hero reveal">${heroInner}
+      ${overdue ? `<div class="overdue mono">⏱ ${Math.round(hrsSince)}h since your last session — the window is open. Tonight counts double for the streak.</div>` : ''}
       <div class="hero-meta">
         <div class="hm"><b>${state.sessionCount}</b><span>Sessions</span></div>
         <div class="hm"><b>${CHAINS.reduce((s, c) => s + state.chains[c.id].level, 0)}</b><span>Levels passed</span></div>
         <div class="hm"><b>${streak()}</b><span>Streak</span></div>
       </div>
     </div>
+
+    ${showRemindCard ? `<div class="remind-card reveal" style="animation-delay:60ms">
+      <div class="rx-text">
+        <b>⏰ NEVER MISS THE WINDOW</b>
+        <p>Get a nudge when 48h passes since your last session, and a streak-saver alert at 68h. Consistency is the whole 30-day mission.</p>
+      </div>
+      <div class="rx-actions">
+        <button class="btn primary small" onclick="enableReminders()">TURN ON REMINDERS</button>
+        <button class="btn ghost small" onclick="dismissReminders()">NO THANKS</button>
+      </div>
+    </div>` : ''}
 
     ${rx ? `<div class="deload-rx reveal" style="animation-delay:70ms">
       <div class="rx-text">
@@ -561,6 +638,7 @@ function finishSession() {
     adv, part, skip: skip.length, deload: wasDeload,
   };
   state.sessionCount++;
+  state.lastSessionAt = Date.now();
 
   let deloadDone = false;
   if (wasDeload) {
@@ -813,6 +891,11 @@ function renderRecover() {
           ${pendingImport ? '⚠ CONFIRM RESTORE — OVERWRITES CURRENT' : '⬆ IMPORT BACKUP'}</button>
       </div>
       <p class="data-meta mono">${state.lastBackup ? `last backup: ${state.lastBackup}` : 'no backup yet'}${pendingImport ? ` · restoring file from ${pendingImport.updatedAt ? new Date(pendingImport.updatedAt).toLocaleDateString() : 'unknown date'}` : ''}</p>
+      <div class="remind-row">
+        <span>🔔 Training reminders: <b>${state.remindersOn ? (state.remindersBg ? 'ON — background nudges' : 'ON — in-app only') : 'OFF'}</b></span>
+        <button class="btn small ${state.remindersOn ? 'ghost' : ''}" onclick="${state.remindersOn ? 'disableReminders()' : 'enableReminders()'}">
+          ${state.remindersOn ? 'TURN OFF' : 'TURN ON'}</button>
+      </div>
       <p class="legal-line">IRONPATH is general fitness information, not medical advice. Consult a physician before training; stop on sharp or joint pain. You train at your own risk.</p>
     </div>`;
 }
