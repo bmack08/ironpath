@@ -821,13 +821,32 @@ function renderRecover() {
 
 let pendingImport = null;
 
-function exportData() {
+async function exportData() {
   state.lastBackup = todayStr();
   save();
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const json = JSON.stringify(state, null, 2);
+  const filename = `ironpath-backup-${todayStr()}.json`;
+
+  // claude.ai artifact viewer: downloads must go through the runtime capability
+  if (window.claude && window.claude.use) {
+    try {
+      const dl = await window.claude.use('downloads');
+      if (dl) {
+        await dl.save({ filename, data: json });
+        toast('Backup saved — stash it in your cloud drive.');
+        render();
+        return;
+      }
+    } catch (e) {
+      if (e && e.code === 'declined') { render(); return; }
+      // any other failure: fall through to the normal download path
+    }
+  }
+
+  const blob = new Blob([json], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `ironpath-backup-${todayStr()}.json`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
