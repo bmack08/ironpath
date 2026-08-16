@@ -1,7 +1,7 @@
 /* ============================================================
    IRONPATH — Chalk & Iron
    Training-poster brutalism: near-black iron, chalk white,
-   ember accent, band colors from the BWF chart.
+   ember accent, band colors for the four skill tiers.
    ============================================================ */
 
 :root {
@@ -593,6 +593,99 @@ body {
 }
 .celebrate-next { color: var(--muted); font-size: 15px; margin-bottom: 30px; }
 .celebrate-next b { color: var(--ember-hi); }
+
+/* ============ SESSION REPORT ============ */
+
+.report-stats { display: flex; gap: 12px; margin: 14px 0 16px; }
+.rstat {
+  flex: 1; text-align: center;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--bg2); padding: 12px 8px;
+}
+.rstat b { font-family: var(--disp); font-size: 26px; display: block; color: var(--ember-hi); }
+.rstat span { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--faint); text-transform: uppercase; }
+.report-lists { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.rrow { display: flex; align-items: flex-start; gap: 12px; }
+.rrow > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.rlabel {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 1.5px;
+  padding: 4px 0; min-width: 92px; flex: none;
+}
+.rlabel.pass { color: var(--pass); }
+.rlabel.hold { color: var(--band-int); }
+.rlabel.skip { color: var(--faint); }
+.rchip {
+  font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: 1px;
+  padding: 4px 9px; border-radius: 5px; border: 1px solid;
+}
+.rchip.pass { color: var(--pass); border-color: rgba(184, 230, 45, 0.5); background: var(--pass-soft); }
+.rchip.hold { color: var(--band-int); border-color: rgba(255, 194, 75, 0.5); background: rgba(255, 194, 75, 0.08); }
+.rchip.skip { color: var(--faint); border-color: var(--line2); }
+
+/* ============ TRAINING LOG ============ */
+
+.log-card {
+  border: 1px solid var(--line); border-radius: var(--rad);
+  background: var(--panel); padding: 20px 22px;
+}
+.cal-strip { display: grid; grid-template-columns: repeat(28, 1fr); gap: 4px; margin-bottom: 16px; }
+.cal-cell { aspect-ratio: 1; border-radius: 3px; background: var(--bg2); border: 1px solid var(--line); }
+.cal-cell.dayA { background: var(--ember); border-color: var(--ember); }
+.cal-cell.dayB { background: var(--band-beg); border-color: var(--band-beg); }
+.cal-cell.dayC { background: var(--pass); border-color: var(--pass); }
+.cal-cell.deload { background: var(--band-int); border-color: var(--band-int); }
+.cal-cell.today { outline: 2px solid var(--ink); outline-offset: 1px; }
+.log-rows { display: flex; flex-direction: column; }
+.log-row {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  padding: 9px 0; border-top: 1px dashed var(--line);
+  font-size: 12.5px;
+}
+.log-date { color: var(--muted); min-width: 92px; }
+.log-day { font-family: var(--mono); font-size: 11px; letter-spacing: 1px; color: var(--ember-hi); min-width: 120px; }
+.log-day.deload { color: var(--band-int); }
+.log-vol { font-size: 11px; color: var(--faint); }
+.log-adv { font-size: 11px; color: var(--pass); margin-left: auto; }
+
+/* ============ DELOAD ============ */
+
+.deload-rx {
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  border: 1px solid var(--band-int); border-radius: var(--rad);
+  background: linear-gradient(180deg, rgba(255, 194, 75, 0.07), var(--panel));
+  padding: 18px 24px; margin-bottom: 22px;
+}
+.rx-text { flex: 1; min-width: 260px; }
+.rx-text b { font-family: var(--mono); font-size: 12px; letter-spacing: 2.5px; color: var(--band-int); display: block; margin-bottom: 4px; }
+.rx-text p { color: var(--muted); font-size: 13px; }
+.rx-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.deload-banner {
+  border: 1px dashed var(--band-int); border-radius: 10px;
+  background: rgba(255, 194, 75, 0.06);
+  padding: 13px 18px; margin-top: 14px;
+  font-size: 12.5px; color: var(--muted); max-width: 780px;
+}
+.deload-banner b { font-family: var(--mono); font-size: 11px; letter-spacing: 2px; color: var(--band-int); display: block; margin-bottom: 3px; }
+.ready-flag.stalled { color: var(--band-int); border-color: var(--band-int); background: rgba(255, 194, 75, 0.1); animation: none; }
+
+/* ============ DATA / LEGAL ============ */
+
+.data-card {
+  border: 1px solid var(--line); border-radius: var(--rad);
+  background: var(--panel); padding: 22px 24px;
+  max-width: 640px;
+}
+.data-card p { color: var(--muted); font-size: 13.5px; }
+.data-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 10px; }
+.data-meta { font-size: 10.5px; letter-spacing: 1px; color: var(--faint); }
+.legal-line {
+  margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line);
+  font-size: 11.5px !important; color: var(--faint) !important;
+}
+.legal-body { color: var(--muted); font-size: 13.5px; margin: 10px 0 20px; }
+.legal-body p { margin-bottom: 10px; }
+.legal-body ul { margin-left: 18px; }
+.legal-body li { padding: 3px 0; }
 
 /* ============ REST DOCK ============ */
 

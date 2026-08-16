@@ -1,7 +1,8 @@
 /* ============================================================
    IRONPATH — progression data
-   Source: BWF Progressions v2 chart (Overcoming Gravity 2nd Ed /
-   Reddit Bodyweight Fitness Recommended Routine)
+   The IRONPATH Method: an original ten-chain progression system —
+   exercise selection, level standards, targets, and test-out gates
+   authored for this app. Exercise names are standard fitness terms.
    Bands: beg → int → adv → elite
    scheme.type: 'reps' | 'reps-side' | 'hold' | 'neg' (slow negatives)
    Every level has a hardcoded TEST-OUT gate — pass it to unlock the next.

@@ -33,7 +33,10 @@ function fmtPill(scheme, target) {
     default: return `${target}`;
   }
 }
+function deloadActive() { return !!(state && state.deload && state.deload.active); }
+function setsFor(scheme) { return deloadActive() ? Math.max(1, Math.ceil(scheme.sets / 2)) : scheme.sets; }
 function dayTarget(scheme, target, dayKey) {
+  if (deloadActive()) return Math.max(1, Math.round(target * 0.7));
   if (dayKey === 'B') return Math.max(1, Math.round(target * 0.8));
   return target;
 }
@@ -188,6 +191,11 @@ function renderToday() {
        <h1 class="hero-title">SESSION<br><span class="accent">BANKED.</span></h1>
        <p class="hero-tag">Today's work is done. Protein, water, walk, sleep — the adaptation is happening right now. Next up: Session ${nextDayKey()} · ${DAYS[nextDayKey()].name} in ~48h.</p>
        <div class="hero-actions"><button class="btn ghost" onclick="setView('recover')">RECOVERY PROTOCOL</button></div>`
+    : deloadActive()
+    ? `<div class="hero-date">${dateLine}</div>
+       <h1 class="hero-title">DELOAD —<br><span class="accent">ON PURPOSE</span></h1>
+       <p class="hero-tag">${state.deload.remaining} easy session${state.deload.remaining > 1 ? 's' : ''} left: half sets, ~70% targets, nothing near failure. This is where six weeks of work turns into strength.</p>
+       <div class="hero-actions"><button class="btn primary" onclick="setView('train')">START DELOAD SESSION ▸</button></div>`
     : `<div class="hero-date">${dateLine}</div>
        <h1 class="hero-title">SESSION ${dayKey} —<br><span class="accent">${day.name}</span></h1>
        <p class="hero-tag">${day.tagline}</p>
@@ -195,6 +203,8 @@ function renderToday() {
          <button class="btn primary" onclick="setView('train')">START SESSION ▸</button>
          ${readyCount ? `<button class="btn ghost" onclick="setView('ladders')">⚡ ${readyCount} TEST-OUT${readyCount > 1 ? 'S' : ''} READY</button>` : ''}
        </div>`;
+
+  const rx = deloadCheck();
 
   stage.innerHTML = `
     <div class="hero reveal">${heroInner}
@@ -204,6 +214,17 @@ function renderToday() {
         <div class="hm"><b>${streak()}</b><span>Streak</span></div>
       </div>
     </div>
+
+    ${rx ? `<div class="deload-rx reveal" style="animation-delay:70ms">
+      <div class="rx-text">
+        <b>DELOAD PRESCRIBED</b>
+        <p>${rx.why} One easy week now beats three stuck weeks later: half sets, 70% targets, progression pauses and resumes stronger.</p>
+      </div>
+      <div class="rx-actions">
+        <button class="btn primary small" onclick="startDeload()">START DELOAD WEEK</button>
+        <button class="btn ghost small" onclick="snoozeDeload()">NOT NOW</button>
+      </div>
+    </div>` : ''}
 
     <div class="mission reveal" style="animation-delay:80ms">
       <div class="mission-day">${String(mDay).padStart(2, '0')}<small>OF ${MISSION_DAYS} DAYS</small></div>
@@ -226,9 +247,11 @@ function renderToday() {
         const circ = 2 * Math.PI * 40;
         const color = complete ? 'var(--pass)' : BANDS[level.band].color;
         const ready = state.chains[c.id].ready && !complete;
+        const stalled = !ready && !complete && (state.chains[c.id].missStreak || 0) >= 2;
         return `
         <div class="ring-card reveal" style="animation-delay:${160 + i * 45}ms" onclick="openLadder('${c.id}')">
           ${ready ? '<div class="ready-flag">TEST READY</div>' : ''}
+          ${stalled ? '<div class="ready-flag stalled">STALLED</div>' : ''}
           <div class="ring-wrap">
             <svg viewBox="0 0 92 92">
               <circle class="track" cx="46" cy="46" r="40"/>
@@ -242,6 +265,48 @@ function renderToday() {
           <span class="band-chip band-${complete ? 'elite' : level.band}">${complete ? 'MASTERED' : BANDS[level.band].label}</span>
         </div>`;
       }).join('')}
+    </div>
+
+    ${renderLog()}`;
+}
+
+/* ---------- TRAINING LOG (history) ---------- */
+
+function renderLog() {
+  const entries = Object.entries(state.sessions).sort((a, b) => a[0] < b[0] ? 1 : -1);
+  if (!entries.length) return '';
+
+  // 4-week calendar strip, oldest → newest
+  let cal = '';
+  const today = new Date();
+  for (let i = 27; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const s = state.sessions[key];
+    const cls = s ? (s.deload ? 'deload' : `day${s.day}`) : 'empty';
+    cal += `<div class="cal-cell ${cls} ${i === 0 ? 'today' : ''}" title="${key}${s ? ` · Day ${s.day}` : ''}"></div>`;
+  }
+
+  const rows = entries.slice(0, 6).map(([date, s]) => {
+    const d = new Date(date + 'T12:00');
+    const label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    return `<div class="log-row">
+      <span class="log-date">${label}</span>
+      <span class="log-day ${s.deload ? 'deload' : ''}">${s.deload ? 'DELOAD' : `DAY ${s.day} · ${DAYS[s.day] ? DAYS[s.day].name : ''}`}</span>
+      <span class="log-vol mono">${s.sets ?? '—'} sets · ${s.reps ?? 0} reps · ${s.holds ?? 0}s</span>
+      <span class="log-adv">${(s.adv || []).length ? `▲ ${s.adv.length} hit` : ''}${(s.part || []).length ? ` · ${s.part.length} held` : ''}</span>
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="section-label reveal" style="animation-delay:200ms">
+      <h2>Training Log</h2><div class="rule"></div>
+      <span class="hint">last 4 weeks</span>
+    </div>
+    <div class="log-card reveal" style="animation-delay:230ms">
+      <div class="cal-strip">${cal}</div>
+      <div class="log-rows">${rows}</div>
     </div>`;
 }
 
@@ -258,7 +323,7 @@ function renderTrain() {
       day: trainDay, date: todayStr(),
       log: Object.fromEntries(CHAINS.map(c => {
         const { level } = currentLevel(c.id);
-        return [c.id, new Array(level.scheme.sets).fill(null)];
+        return [c.id, new Array(setsFor(level.scheme)).fill(null)];
       })),
       amrap: {},
       mods: {},
@@ -286,10 +351,17 @@ function renderTrain() {
     </div>
     <p class="day-desc reveal" style="animation-delay:90ms">${day.desc}</p>
 
+    ${deloadActive() ? `<div class="deload-banner reveal" style="animation-delay:95ms">
+      <b>DELOAD WEEK · ${state.deload.remaining} session${state.deload.remaining > 1 ? 's' : ''} left</b>
+      Half the sets, ~70% targets, nothing to failure, no AMRAP. You are banking recovery —
+      targets and progression freeze until the deload ends, then you come back stronger.
+    </div>` : ''}
+
     <p class="set-hint reveal" style="animation-delay:100ms">
-      TAP a set when done at target · TAP AGAIN to subtract and log what you actually got ·
-      ⇄ MOD swaps in an equipment-free equivalent · Short on time? Superset the pairs
-      (pull set → rest → legs set), drop to 2 sets before you skip an exercise, and cut core first — never the pairs.
+      TAP a set when done at target · TAP AGAIN to subtract and log what you actually got —
+      a mid-set pause over ~10s ends the set: log the unbroken number, extra reps after are bonus ·
+      ⇄ MOD swaps in an equipment-free equivalent · Short on time? Superset the pairs,
+      drop to 2 sets before you skip an exercise, and cut core first — never the pairs.
     </p>
 
     <div class="session-bar reveal" style="animation-delay:120ms">
@@ -338,7 +410,7 @@ function exCard(cid, block) {
   const sub = (modIdx !== undefined && subs[modIdx]) ? subs[modIdx] : null;
 
   const pills = log.map((val, si) => {
-    const isAmrap = isTest && si === log.length - 1 && block.id !== 'skill';
+    const isAmrap = isTest && si === log.length - 1 && block.id !== 'skill' && !deloadActive();
     if (isAmrap) {
       const cur = ses.amrap[cid] ?? tgt;
       return `<span class="amrap-ctrl">
@@ -440,26 +512,42 @@ function finishSession() {
   const doneSets = Object.values(ses.log).reduce((s, a) => s + a.filter(x => x !== null).length, 0);
   if (!doneSets) { toast('Log at least one set before banking the session.'); return; }
 
+  const wasDeload = deloadActive();
   const newlyReady = [];
+  const adv = [], part = [], skip = [];
+  let repVol = 0, holdVol = 0;
+
   for (const c of CHAINS) {
     const st = state.chains[c.id];
     const { level, complete } = currentLevel(c.id);
     if (complete) continue;
     const log = ses.log[c.id];
+    for (const v of log) {
+      if (v !== null) { if (level.scheme.type === 'hold') holdVol += v; else repVol += v; }
+    }
+    const logged = log.filter(x => x !== null).length;
+    if (!logged) { skip.push(c.id); continue; }
+
     const tgt = dayTarget(level.scheme, st.target, ses.day);
     // advance only when every set was logged AT OR ABOVE target —
     // partial sets bank the work but the target waits for you
     const allHit = log.length && log.every(x => x !== null && x >= tgt);
-    if (!allHit) continue;
-    // overload engine: heavy/test days move the target
-    if (ses.day !== 'B') {
+    if (!allHit) {
+      part.push(c.id);
+      // stall tracking: only full-effort days count against you
+      if (ses.day !== 'B' && !wasDeload) st.missStreak = (st.missStreak || 0) + 1;
+      continue;
+    }
+    adv.push(c.id);
+    st.missStreak = 0;
+    // overload engine: heavy/test days move the target (frozen during deload)
+    if (ses.day !== 'B' && !wasDeload) {
       if (st.target < level.scheme.cap) {
         st.target = Math.min(level.scheme.cap, st.target + stepFor(level.scheme));
       } else if (!st.ready) {
         st.ready = true;
         newlyReady.push(c);
       }
-      // AMRAP smashing the cap unlocks the gate immediately
       const amrapVal = ses.log[c.id][log.length - 1];
       if (ses.day === 'C' && amrapVal >= level.scheme.cap && st.target >= level.scheme.cap && !st.ready) {
         st.ready = true;
@@ -468,19 +556,84 @@ function finishSession() {
     }
   }
 
-  state.sessions[ses.date] = { day: ses.day };
+  state.sessions[ses.date] = {
+    day: ses.day, sets: doneSets, reps: repVol, holds: holdVol,
+    adv, part, skip: skip.length, deload: wasDeload,
+  };
   state.sessionCount++;
+
+  let deloadDone = false;
+  if (wasDeload) {
+    state.deload.remaining--;
+    if (state.deload.remaining <= 0) {
+      state.deload = null;
+      state.lastDeloadAt = state.sessionCount;
+      deloadDone = true;
+    }
+  }
+
   state.activeSession = null;
   trainDay = null;
   save();
-
-  if (newlyReady.length) {
-    celebrate('GATE UNLOCKED', newlyReady.map(c => c.short).join(' + '),
-      `Test-out now available in <b>${newlyReady.map(c => c.title).join(', ')}</b> — hit the Ladders tab.`);
-  } else {
-    toast(`Session ${ses.day} banked. ${doneSets} sets logged — recovery starts now. 🔩`);
-  }
+  showReport(ses.day, { doneSets, repVol, holdVol, adv, part, skip, newlyReady, wasDeload, deloadDone });
   setView('today');
+}
+
+/* ---------- SESSION REPORT (the workout evaluation) ---------- */
+
+function showReport(dayKey, r) {
+  const day = DAYS[dayKey];
+  $('#reportTitle').textContent = `Day ${dayKey} · ${day.name}${r.wasDeload ? ' · DELOAD' : ''}`;
+  $('#reportStats').innerHTML = `
+    <div class="rstat"><b>${r.doneSets}</b><span>sets</span></div>
+    <div class="rstat"><b>${r.repVol}</b><span>reps</span></div>
+    <div class="rstat"><b>${r.holdVol}s</b><span>holds</span></div>`;
+  const chip = (id, cls) => `<span class="rchip ${cls}">${chainById(id).short}</span>`;
+  $('#reportLists').innerHTML = `
+    ${r.adv.length ? `<div class="rrow"><span class="rlabel pass">TARGET HIT</span><div>${r.adv.map(id => chip(id, 'pass')).join('')}</div></div>` : ''}
+    ${r.part.length ? `<div class="rrow"><span class="rlabel hold">HELD BACK</span><div>${r.part.map(id => chip(id, 'hold')).join('')}</div></div>` : ''}
+    ${r.skip.length ? `<div class="rrow"><span class="rlabel skip">NOT TRAINED</span><div><span class="rchip skip">${r.skip.length} chain${r.skip.length > 1 ? 's' : ''}</span></div></div>` : ''}`;
+  let note;
+  if (r.deloadDone) note = 'Deload complete — targets unfreeze next session. You will feel the difference.';
+  else if (r.wasDeload) note = `Deload session banked. ${state.deload.remaining} to go — stay easy, that's the assignment.`;
+  else if (r.newlyReady.length) note = `⚡ GATE UNLOCKED: ${r.newlyReady.map(c => c.title).join(', ')} — test out from the Ladders tab, fresh, at your next session.`;
+  else if (r.part.length) note = 'Held-back chains keep the same target next time — hit every set at the number and they climb again.';
+  else note = 'Clean sweep. Targets rise next session — protein, water, walk, sleep.';
+  $('#reportNote').textContent = note;
+  $('#reportOverlay').hidden = false;
+  if (r.newlyReady.length && !r.wasDeload) { confetti(); beep([880, 1174.7, 1568], 0.12); }
+}
+
+/* ---------- DELOAD INTELLIGENCE ---------- */
+
+function deloadCheck() {
+  if (deloadActive() || !state.sessionCount) return null;
+  if (state.deloadSnooze && state.sessionCount < state.deloadSnooze) return null;
+  const stalled = CHAINS.filter(c => (state.chains[c.id].missStreak || 0) >= 2);
+  if (stalled.length >= 3) {
+    return { why: `${stalled.length} chains have missed their targets two full-effort sessions running — that's fatigue, not weakness.` };
+  }
+  const since = state.sessionCount - (state.lastDeloadAt || 0);
+  if (since >= 18) {
+    return { why: `${since} hard sessions since your last reset — the 6-week rule says bank the adaptation before it banks you.` };
+  }
+  return null;
+}
+
+function startDeload() {
+  state.deload = { active: true, remaining: 3 };
+  state.deloadSnooze = null;
+  state.activeSession = null;
+  save();
+  toast('Deload week started — 3 easy sessions, then back to full throttle.');
+  setView('train');
+}
+
+function snoozeDeload() {
+  state.deloadSnooze = state.sessionCount + 3;
+  save();
+  toast('Deload snoozed for 3 sessions. If the stall continues, take it.');
+  render();
 }
 
 /* ---------- LADDERS ---------- */
@@ -494,7 +647,7 @@ function renderLadders() {
 
   stage.innerHTML = `
     <div class="reveal">
-      <div class="kicker">BWF PROGRESSIONS V2 · TEST-OUT GATES</div>
+      <div class="kicker">THE IRONPATH METHOD · TEST-OUT GATES</div>
       <h1 class="page-title">Ladders</h1>
       <p class="page-sub">Every level has a hardcoded gate. Pass the test — honestly, fresh, after a warm-up — and the next level unlocks. You can attempt your current gate any time: if you're beyond beginner already, test out fast and find your true level.</p>
     </div>
@@ -572,7 +725,7 @@ function passTest() {
   if (!done) st.target = c.levels[st.level].scheme.start;
   // clear any active-session log row for this chain (set count may differ)
   if (state.activeSession && !done) {
-    state.activeSession.log[cid] = new Array(c.levels[st.level].scheme.sets).fill(null);
+    state.activeSession.log[cid] = new Array(setsFor(c.levels[st.level].scheme)).fill(null);
   }
   save();
   $('#testOverlay').hidden = true;
@@ -646,7 +799,74 @@ function renderRecover() {
           </div>
           <p>${r.body}</p>
         </div>`).join('')}
+    </div>
+
+    <div class="section-label reveal" style="animation-delay:560ms">
+      <h2>Your Data</h2><div class="rule"></div>
+    </div>
+    <div class="data-card reveal" style="animation-delay:590ms">
+      <p>Progress lives on <b>this device only</b> — nothing is uploaded anywhere. Export a backup after big milestones; import it to restore after a phone swap or wipe.</p>
+      <div class="data-actions">
+        <button class="btn small" onclick="exportData()">⬇ EXPORT BACKUP</button>
+        <button class="btn small ${pendingImport ? 'primary' : ''}" id="importBtn"
+          onclick="${pendingImport ? 'confirmImport()' : "document.getElementById('importFile').click()"}">
+          ${pendingImport ? '⚠ CONFIRM RESTORE — OVERWRITES CURRENT' : '⬆ IMPORT BACKUP'}</button>
+      </div>
+      <p class="data-meta mono">${state.lastBackup ? `last backup: ${state.lastBackup}` : 'no backup yet'}${pendingImport ? ` · restoring file from ${pendingImport.updatedAt ? new Date(pendingImport.updatedAt).toLocaleDateString() : 'unknown date'}` : ''}</p>
+      <p class="legal-line">IRONPATH is general fitness information, not medical advice. Consult a physician before training; stop on sharp or joint pain. You train at your own risk.</p>
     </div>`;
+}
+
+/* ---------- BACKUP / RESTORE ---------- */
+
+let pendingImport = null;
+
+function exportData() {
+  state.lastBackup = todayStr();
+  save();
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `ironpath-backup-${todayStr()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast('Backup downloaded — stash it in your cloud drive.');
+  render();
+}
+
+function handleImportFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!data || typeof data !== 'object' || !data.chains || !data.startDate) {
+        toast('⚠ That file is not an IRONPATH backup.');
+        return;
+      }
+      pendingImport = data;
+      toast('Backup looks valid — tap CONFIRM RESTORE to apply it.');
+      render();
+    } catch {
+      toast('⚠ Could not read that file — is it the exported .json?');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function confirmImport() {
+  if (!pendingImport) return;
+  state = pendingImport;
+  pendingImport = null;
+  for (const c of CHAINS) {
+    if (!state.chains[c.id]) {
+      state.chains[c.id] = { level: 0, target: c.levels[0].scheme.start, ready: false, passedAt: {} };
+    }
+  }
+  save();
+  toast('Backup restored. Welcome back.');
+  setView('today');
 }
 
 /* ---------- CELEBRATION + CONFETTI ---------- */
@@ -781,6 +1001,17 @@ function storageAvailable() {
   $('#testPass').addEventListener('click', passTest);
   $('#celebrateClose').addEventListener('click', () => { $('#celebrateOverlay').hidden = true; render(); });
   $('#restSkip').addEventListener('click', () => { clearInterval(restInterval); $('#restDock').hidden = true; });
+  $('#reportClose').addEventListener('click', () => { $('#reportOverlay').hidden = true; render(); });
+  $('#importFile').addEventListener('change', (e) => {
+    if (e.target.files && e.target.files[0]) handleImportFile(e.target.files[0]);
+    e.target.value = '';
+  });
+  if (!state.disclaimerOk) $('#disclaimerOverlay').hidden = false;
+  $('#disclaimerAccept').addEventListener('click', () => {
+    state.disclaimerOk = todayStr();
+    save();
+    $('#disclaimerOverlay').hidden = true;
+  });
   activeView = ['today', 'train', 'ladders', 'roadmap', 'recover'].includes(state.view) ? state.view : 'today';
   $$('.rail-link').forEach(b => b.classList.toggle('active', b.dataset.view === activeView));
   render();

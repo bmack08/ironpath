@@ -88,6 +88,48 @@
   </div>
 </div>
 
+<!-- ============ SESSION REPORT ============ -->
+<div class="overlay" id="reportOverlay" hidden>
+  <div class="modal report-modal">
+    <div class="modal-hazard"></div>
+    <div class="modal-body">
+      <div class="test-kicker">SESSION BANKED</div>
+      <h2 class="test-name" id="reportTitle">—</h2>
+      <div class="report-stats" id="reportStats"></div>
+      <div class="report-lists" id="reportLists"></div>
+      <p class="test-note" id="reportNote"></p>
+      <div class="modal-actions">
+        <button class="btn primary" id="reportClose">RECOVERY STARTS NOW</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ DISCLAIMER (first run) ============ -->
+<div class="overlay" id="disclaimerOverlay" hidden>
+  <div class="modal">
+    <div class="modal-hazard"></div>
+    <div class="modal-body">
+      <div class="test-kicker">READ BEFORE YOU TRAIN</div>
+      <h2 class="test-name">Train Smart</h2>
+      <div class="legal-body">
+        <p>IRONPATH provides general fitness information for educational purposes. It is not medical advice, and it is not a substitute for guidance from a qualified professional.</p>
+        <ul>
+          <li>Consult a physician before starting this or any exercise program — especially if you have a pre-existing condition, injury, or haven't trained in a long time.</li>
+          <li>Bodyweight strength training is demanding. Progress at your own pace; never train through sharp or joint pain.</li>
+          <li>Check that bars, rings, chairs, and other equipment are stable and rated for your weight before loading them.</li>
+          <li>By using this app you accept full responsibility for your own training and assume all risk of injury.</li>
+        </ul>
+      </div>
+      <div class="modal-actions">
+        <button class="btn primary" id="disclaimerAccept">I UNDERSTAND — LET'S TRAIN</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="importFile" accept=".json,application/json" hidden>
+
 <!-- ============ REST TIMER ============ -->
 <div class="rest-dock" id="restDock" hidden>
   <svg class="rest-ring" viewBox="0 0 100 100">
