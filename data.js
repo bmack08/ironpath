@@ -719,8 +719,120 @@ const SUBS = {
     { name: 'Standing Towel Rollout', cue: 'Full standing slide-out and return on smooth floor.' } ],
 };
 
+/* HOME map — guarantees EVERY level has at least one do-it-at-home option
+   with real coaching cues. Assumes at most: a doorway, a sturdy table/chair,
+   a towel, a backpack with books, stairs, and a wall. */
+
+const HOME = {
+  'row:Archer Row': [
+    { name: 'Archer Towel Row', cue: 'Towel on a door handle, feet close to the door for steep angle. Row to one hand while the other arm stays straight — alternate sides.' } ],
+  'row:Tuck Front Lever Row': [
+    { name: 'Tuck Table Row', cue: 'Under a sturdy table, knees tucked to chest the whole set, hips level with shoulders. Row chest to the table edge.' } ],
+  'row:Adv Tuck FL Row': [
+    { name: 'Open-Tuck Table Row', cue: 'Same table row but open the knees to ~90° so the hips carry more lever. Back stays flat, hips never drop.' } ],
+  'row:Straddle FL Row': [
+    { name: 'One-Arm Table Row', cue: 'Under the table, one hand on the edge, body straight, row up keeping the torso square. Brutal — that is the point.' } ],
+  'row:Front Lever Row': [
+    { name: 'Slow One-Arm Table Row', cue: '5-second negatives on the one-arm table row, body rigid head to heels.' } ],
+
+  'pullup:Pull Up': [
+    { name: 'Steep Table Pull', cue: 'Under a sturdy low table, body nearly vertical under the edge, pull chin toward the surface. As vertical as your setup allows — the closer to vertical, the closer to a real pull up.' } ],
+  'pullup:L-Pull Up': [
+    { name: 'Steep Table Pull + L-Legs', cue: 'Same steep table pull with legs held straight out in an L for the entire set.' } ],
+  'pullup:Chest to Bar PU': [
+    { name: 'Explosive Table Pull', cue: 'Steep table pull, pull as fast as possible so the chest touches the edge; lower slow.' } ],
+  'pullup:Archer Pull Up': [
+    { name: 'Archer Table Pull', cue: 'Steep table pull to one hand, other arm sliding straight along the edge. Alternate sides.' } ],
+  'pullup:OA Pull Up Negative': [
+    { name: 'One-Arm Table Pull Negative', cue: 'One hand on the table edge, body steep, lower yourself for 7+ seconds. Zero elbow pain allowed.' } ],
+  'pullup:Muscle Up': [
+    { name: 'Table Pull-Over', cue: 'Explosive steep table pull, then push down on the edge to press your torso above table height — pull flowing into push, the muscle-up pattern.' } ],
+  'pullup:One Arm Pull Up': [
+    { name: 'One-Arm Table Pull', cue: 'Full one-arm rows on the steepest table angle you can build. The honest home stand-in while you hunt for a bar.' } ],
+
+  'pushup:Incline Push Up': [
+    { name: 'Wall Push Up', cue: 'Hands on the wall at chest height, body rigid, chest to wall. The easier regression for rough days.' } ],
+  'pushup:Push Up': [
+    { name: 'Knee Push Up', cue: 'Full-range push ups from the knees — chest to the floor, hips locked in line with shoulders and knees.' } ],
+  'pushup:Diamond Push Up': [
+    { name: 'Close-Grip Knee Push Up', cue: 'Diamond hands under the sternum, from the knees, chest touches hands every rep.' } ],
+  'pushup:Pseudo Planche PU': [
+    { name: 'Chair Planche Lean', cue: 'Hands on two chair seats at your waist line, lean shoulders far past your hands and do slow push ups; feet stay on the floor.' } ],
+  'pushup:Archer Push Up': [
+    { name: 'Book-Assist Archer PU', cue: 'One hand on a thick book, that arm slides out straight while the floor arm does the work. Alternate.' } ],
+  'pushup:One Arm Push Up': [
+    { name: 'One-Arm Incline PU (stairs)', cue: 'Working hand on a stair or table edge, feet wide, torso square. Walk down a stair as it gets easier.' } ],
+  'pushup:Tuck Planche PU': [
+    { name: 'Chair Tuck Press', cue: 'Hands on two chair seats, knees tucked to chest with feet off the floor, bend and press the arms.' } ],
+
+  'dip:Ring Dip Negative': [
+    { name: 'Loaded Chair Dip Negative', cue: 'Two sturdy chair backs (or counter corner), heavy backpack on, 5-second negatives to full depth.' } ],
+  'dip:Ring Dip': [
+    { name: 'Loaded Chair Dip', cue: 'Full dips between two sturdy chairs with a loaded backpack. Shoulder below elbow at the bottom.' } ],
+  'dip:RTO Dip': [
+    { name: 'Chair Dip + Turn-Out', cue: 'Chair dips finishing each lockout by rotating the hands outward and squeezing for 2 seconds.' } ],
+  'dip:Ring L-Dip': [
+    { name: 'Loaded Chair L-Dip', cue: 'Chair dips with legs held straight out in an L, backpack on the lap if you can hold it.' } ],
+
+  'hs:Wall Plank': [
+    { name: 'Incline Pike Hold', cue: 'Feet on a chair, hips high above shoulders, arms locked. An easier day-one shoulder stacker.' } ],
+  'hs:Pike Push Up': [
+    { name: 'Knee-on-Chair Pike PU', cue: 'Knees on a chair seat, hips stacked over shoulders, lower the head to the floor and press.' } ],
+  'hs:Decline Pike PU': [
+    { name: 'Feet-on-Stairs Pike PU', cue: 'Feet two or three stairs up, hands at the base, torso near vertical, head to floor and press.' } ],
+  'hs:Wall Handstand': [
+    { name: 'Back-to-Wall Handstand', cue: 'Kick up with your back to the wall instead of chest-to-wall — easier to enter, same 60s stacking work.' } ],
+  'hs:Freestanding HS': [
+    { name: 'Wall Heel-Pull Balance', cue: 'Chest-to-wall handstand, pull one heel then both off the wall and balance as long as possible. Count only the off-wall seconds.' } ],
+  'hs:Wall HSPU Negative': [
+    { name: 'Elevated Pike Negative', cue: 'Feet high on a chair or stairs, 5-second lower to the top of the head, kick down, reset.' } ],
+  'hs:Wall HSPU': [
+    { name: 'Deep Elevated Pike PU', cue: 'Feet high, hands on two thick books so the head can travel below hand level — full press.' } ],
+  'hs:Freestanding HSPU': [
+    { name: 'Wall HSPU (minimal heel)', cue: 'Wall handstand push ups touching the wall with heels only as lightly as possible.' } ],
+
+  'squat:Parallel Squat': [
+    { name: 'Sit-to-Chair Squat', cue: 'Squat back until you lightly touch a chair seat, stand right back up. No plopping.' } ],
+  'squat:Full Squat': [
+    { name: 'Heel-Elevated Full Squat', cue: 'Heels on a book if ankle mobility blocks depth — hips below knees, chest tall.' } ],
+  'squat:Split Squat': [
+    { name: 'Doorway Split Squat', cue: 'Long stance in a doorway, fingertips on the frame for balance only, back knee kisses the floor.' } ],
+  'squat:Beg Shrimp Squat': [
+    { name: 'Doorway Shrimp', cue: 'Bend one leg behind you, fingertips on the doorframe, squat until the back knee touches.' } ],
+  'squat:Pistol Squat': [
+    { name: 'Pistol to Low Step', cue: 'One-leg squat down to a low stair or stack of books, tap, stand. Lower the target over time.' } ],
+  'squat:Shrimp Squat': [
+    { name: 'Towel Shrimp', cue: 'Hold the rear foot with a towel loop instead of the hand if mobility is the limiter — same knee-to-floor depth.' } ],
+  'squat:Elevated Shrimp Squat': [
+    { name: 'Stair Shrimp', cue: 'Front foot on the bottom stair, rear foot held, knee travels below the stair line.' } ],
+
+  'lsit:One Leg L-Sit': [
+    { name: 'Chair One-Leg L-Sit', cue: 'Hands on a chair seat (extra height = easier), one leg straight out, the other foot lightly down.' } ],
+  'lsit:One Leg Bent L-Sit': [
+    { name: 'Books One-Leg Bent L-Sit', cue: 'Hands on two thick books, one leg straight, one tucked, feet off the floor.' } ],
+  'lsit:L-Sit': [
+    { name: 'Books L-Sit', cue: 'A thick book under each hand buys the clearance for full L-sits at home.' } ],
+  'lsit:Straddle L-Sit': [
+    { name: 'Chair Straddle L-Sit', cue: 'Between two chair seats, legs wide and lifted above hip line.' } ],
+  'lsit:45° V-Sit': [
+    { name: 'Floor V-Up Hold', cue: 'On the floor, legs at 45° and torso leaned back, arms reaching forward — hold the V.' } ],
+  'lsit:V-Sit → Manna': [
+    { name: 'Wall V-Sit', cue: 'Heels lightly on the wall at 75°+, push the floor away, take the feet off in pulses.' } ],
+
+  'hang:Ankle Weight T2B': [
+    { name: 'Backpack V-Up', cue: 'Strict V-ups hugging a light backpack to your chest — same weighted compression.' } ],
+
+  'antiext:Plank': [
+    { name: 'Incline Plank', cue: 'Forearms on a chair seat — easier angle, same glutes-squeezed ribs-down brace.' } ],
+  'antiext:One Arm Plank': [
+    { name: 'Plank Shoulder Tap', cue: 'Hard-style plank, slowly tap opposite shoulder — hips must not rotate at all.' } ],
+  'antiext:Dragon Flag': [
+    { name: 'Floor Dragon Negative', cue: 'On the floor gripping a heavy couch leg overhead, legs to vertical, lower body straight as slow as possible.' } ],
+};
+
 function subsFor(chainId, levelName) {
-  return SUBS[`${chainId}:${levelName}`] || [];
+  const k = `${chainId}:${levelName}`;
+  return [...(SUBS[k] || []), ...(HOME[k] || [])];
 }
 
 /* Escape-beginner 30-day mission shown on dashboard */

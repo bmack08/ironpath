@@ -346,6 +346,39 @@ body {
   background: rgba(255, 194, 75, 0.1); border-color: var(--band-int); color: var(--band-int);
 }
 
+/* typed set entry */
+.ex-goal {
+  font-size: 10.5px; letter-spacing: 0.8px; color: var(--faint);
+  border-left: 2px solid var(--line2); padding-left: 9px;
+  margin: -6px 0 12px;
+}
+.set-in {
+  display: inline-flex; align-items: center;
+  border: 1px solid var(--line2); border-radius: 9px;
+  background: var(--bg2);
+  padding-right: 9px;
+  transition: border-color 0.2s, background 0.2s;
+}
+.set-in input {
+  width: 58px; min-height: 46px;
+  background: transparent; border: 0; outline: none;
+  color: var(--ink);
+  font-family: var(--mono); font-size: 15.5px; font-weight: 600;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+.set-in input::-webkit-outer-spin-button,
+.set-in input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.set-in input::placeholder { color: var(--faint); font-weight: 400; }
+.set-in span { font-family: var(--mono); font-size: 9.5px; letter-spacing: 1px; color: var(--faint); }
+.set-in:focus-within { border-color: var(--ink); }
+.set-in.logged { border-color: var(--pass); background: var(--pass-soft); }
+.set-in.logged input { color: var(--pass); }
+.set-in.partial { border-color: var(--band-int); background: rgba(255, 194, 75, 0.08); }
+.set-in.partial input { color: var(--band-int); }
+.set-in.amrap { border-style: dashed; border-color: var(--ember); }
+.set-in.amrap span { color: var(--ember-hi); }
+
 .mod-btn {
   appearance: none; cursor: pointer;
   font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: 1px;

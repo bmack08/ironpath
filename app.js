@@ -443,10 +443,11 @@ function renderTrain() {
     </div>` : ''}
 
     <p class="set-hint reveal" style="animation-delay:100ms">
-      TAP a set when done at target · TAP AGAIN to subtract and log what you actually got —
-      a mid-set pause over ~10s ends the set: log the unbroken number, extra reps after are bonus ·
-      ⇄ MOD swaps in an equipment-free equivalent · Short on time? Superset the pairs,
-      drop to 2 sets before you skip an exercise, and cut core first — never the pairs.
+      TYPE what you actually got into each set box — the goal is printed on the card; at or above
+      goal counts toward progression, below it banks the work and holds the target · a mid-set pause
+      over ~10s ends the set: log the unbroken number, extra reps after are bonus · ⇄ MOD swaps in a
+      home / no-equipment version (every exercise has one) · Short on time? Superset the pairs, drop
+      to 2 sets before you skip an exercise, and cut core first — never the pairs.
     </p>
 
     <div class="session-bar reveal" style="animation-delay:120ms">
@@ -495,23 +496,26 @@ function exCard(cid, block) {
   const modIdx = ses.mods ? ses.mods[cid] : undefined;
   const sub = (modIdx !== undefined && subs[modIdx]) ? subs[modIdx] : null;
 
-  const pills = log.map((val, si) => {
+  const suffix = level.scheme.type === 'hold' ? 's' :
+                 level.scheme.type === 'reps-side' ? '/s' :
+                 level.scheme.type === 'neg' ? 'neg' : '';
+  const inputs = log.map((val, si) => {
     const isAmrap = isTest && si === log.length - 1 && block.id !== 'skill' && !deloadActive();
-    if (isAmrap) {
-      const cur = ses.amrap[cid] ?? tgt;
-      return `<span class="amrap-ctrl">
-        <button class="amrap-btn" onclick="bumpAmrap('${cid}',-1)">−</button>
-        <button class="set-pill amrap-pill ${val !== null ? 'logged' : ''}" id="pill-${cid}-${si}"
-          onclick="logSet('${cid}',${si},${restSec},true)"
-          title="AMRAP — as many clean reps as possible">${val !== null ? val : cur}·AMRAP</button>
-        <button class="amrap-btn" onclick="bumpAmrap('${cid}',1)">+</button>
-      </span>`;
-    }
-    const partial = val !== null && val < tgt;
-    return `<button class="set-pill ${val !== null ? 'logged' : ''} ${partial ? 'partial' : ''}" id="pill-${cid}-${si}"
-      onclick="logSet('${cid}',${si},${restSec},false)"
-      title="Tap = done at target · tap again = −1 to log what you actually got">${val !== null ? (partial ? '' : '✓ ') + fmtPill(level.scheme, val) : fmtPill(level.scheme, tgt)}</button>`;
+    const partial = val !== null && val < tgt && !isAmrap;
+    return `<label class="set-in ${val !== null ? (partial ? 'partial' : 'logged') : ''} ${isAmrap ? 'amrap' : ''}" id="setin-${cid}-${si}">
+      <input type="number" inputmode="numeric" min="0" max="999"
+        placeholder="${isAmrap ? 'max' : tgt}" value="${val !== null ? val : ''}"
+        onchange="commitSet('${cid}',${si},this,${restSec},${isAmrap})"
+        onkeydown="if(event.key==='Enter')this.blur()"
+        aria-label="Set ${si + 1} result">
+      <span>${isAmrap ? 'AMRAP' : suffix}</span>
+    </label>`;
   }).join('');
+
+  const totalGoal = tgt * log.length;
+  const goalWord = level.scheme.type === 'hold' ? 'seconds' :
+                   level.scheme.type === 'neg' ? 'slow negatives' :
+                   level.scheme.type === 'reps-side' ? 'reps per side' : 'reps';
 
   return `
   <div class="ex-card ${allDone ? 'done' : ''}" id="ex-${cid}" data-block="${block.id}">
@@ -523,10 +527,11 @@ function exCard(cid, block) {
       <div class="ex-target">${fmtTarget(level.scheme, tgt)}${st.ready ? ' ⚡' : ''}</div>
     </div>
     <p class="ex-cue">${sub ? sub.cue : level.cue}</p>
+    <div class="ex-goal mono">GOAL: ${tgt} ${goalWord} × ${log.length} sets = ${totalGoal}${level.scheme.type === 'hold' ? 's' : ''} total — type what you got</div>
     <div class="set-row">
-      ${pills}
+      ${inputs}
       ${subs.length ? `<button class="mod-btn ${sub ? 'on' : ''}" onclick="cycleMod('${cid}')"
-        title="No equipment? Swap in an equivalent — sets still count, the test-out gate stays on the real exercise">⇄ MOD</button>` : ''}
+        title="Swap in a home / no-equipment version — sets still count, the test-out gate stays on the real exercise">⇄ MOD</button>` : ''}
     </div>
   </div>`;
 }
@@ -540,47 +545,32 @@ function switchDay(k) {
   save();
 }
 
-function logSet(cid, si, restSec, isAmrap) {
+/* typed set entry: commit on blur/Enter — the value IS what you got */
+function commitSet(cid, si, el, restSec, isAmrap) {
   const ses = state.activeSession;
-  const st = state.chains[cid];
-  const { level } = currentLevel(cid);
-  const tgt = dayTarget(level.scheme, st.target, trainDay);
-  const cur = ses.log[cid][si];
-  let firstLog = false;
-  if (isAmrap) {                             // AMRAP has its own +/- — tap just toggles
-    ses.log[cid][si] = cur !== null ? null : (ses.amrap[cid] ?? tgt);
-    firstLog = ses.log[cid][si] !== null;
-  } else if (cur === null) {                 // first tap: done at target
-    ses.log[cid][si] = tgt;
-    firstLog = true;
-  } else {                                   // further taps: −1 each, down to un-logged
-    const step = stepFor(level.scheme);
-    const nv = cur - step;
-    ses.log[cid][si] = nv >= step ? nv : null;
-  }
-  if (firstLog) { startRest(restSec); buzz(30); }
+  const prev = ses.log[cid][si];
+  const v = parseInt(el.value, 10);
+  const val = Number.isFinite(v) && v > 0 ? Math.min(999, v) : null;
+  ses.log[cid][si] = val;
+  if (val === null) el.value = '';
+  if (isAmrap && val !== null) ses.amrap[cid] = val;
+  if (prev === null && val !== null) { startRest(restSec); buzz(30); }
   save();
-  updateTrainDom(cid, si);   // targeted update — no full re-render, no animation replay
+  refreshSetDom(cid, si);   // targeted update — no full re-render, no animation replay
 }
 
-/* surgically refresh one pill + its card + the session bar */
-function updateTrainDom(cid, si) {
-  const pill = document.getElementById(`pill-${cid}-${si}`);
+/* surgically refresh one set box + its card + the session bar */
+function refreshSetDom(cid, si) {
+  const wrap = document.getElementById(`setin-${cid}-${si}`);
   const ses = state.activeSession;
-  if (!pill || !ses) { renderTrain(); return; }
+  if (!wrap || !ses) { renderTrain(); return; }
   const st = state.chains[cid];
   const { level } = currentLevel(cid);
   const tgt = dayTarget(level.scheme, st.target, trainDay);
   const val = ses.log[cid][si];
-  const isAmrap = pill.classList.contains('amrap-pill');
-  const partial = val !== null && val < tgt && !isAmrap;
-  pill.classList.toggle('logged', val !== null);
-  pill.classList.toggle('partial', partial);
-  if (isAmrap) {
-    pill.textContent = `${val !== null ? val : (ses.amrap[cid] ?? tgt)}·AMRAP`;
-  } else {
-    pill.textContent = val !== null ? `${partial ? '' : '✓ '}${fmtPill(level.scheme, val)}` : fmtPill(level.scheme, tgt);
-  }
+  const isAmrap = wrap.classList.contains('amrap');
+  wrap.classList.toggle('logged', val !== null && (isAmrap || val >= tgt));
+  wrap.classList.toggle('partial', val !== null && !isAmrap && val < tgt);
   const card = document.getElementById(`ex-${cid}`);
   if (card) card.classList.toggle('done', ses.log[cid].every(x => x !== null));
   const totalSets = Object.values(ses.log).reduce((s, a) => s + a.length, 0);
@@ -612,19 +602,6 @@ function cycleMod(cid) {
   if (card && block) card.outerHTML = exCard(cid, block);
   else renderTrain();
   if (focusOn) focusRender();
-}
-
-function bumpAmrap(cid, d) {
-  const ses = state.activeSession;
-  const { level } = currentLevel(cid);
-  const st = state.chains[cid];
-  const base = ses.amrap[cid] ?? dayTarget(level.scheme, st.target, trainDay);
-  ses.amrap[cid] = Math.max(0, base + d * stepFor(level.scheme));
-  // if the amrap set is already logged, update its value live
-  const li = ses.log[cid].length - 1;
-  if (ses.log[cid][li] !== null) ses.log[cid][li] = ses.amrap[cid];
-  save();
-  updateTrainDom(cid, li);
 }
 
 function finishSession() {
