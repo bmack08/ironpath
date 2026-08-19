@@ -257,7 +257,10 @@ function renderToday() {
     ? `<div class="hero-date">${dateLine}</div>
        <h1 class="hero-title">SESSION<br><span class="accent">BANKED.</span></h1>
        <p class="hero-tag">Today's work is done. Protein, water, walk, sleep — the adaptation is happening right now. Next up: Session ${nextDayKey()} · ${DAYS[nextDayKey()].name} in ~48h.</p>
-       <div class="hero-actions"><button class="btn ghost" onclick="setView('recover')">RECOVERY PROTOCOL</button></div>`
+       <div class="hero-actions">
+         <button class="btn ghost" onclick="setView('recover')">RECOVERY PROTOCOL</button>
+         <button class="btn ghost" onclick="shareStats()">📸 SHARE CARD</button>
+       </div>`
     : deloadActive()
     ? `<div class="hero-date">${dateLine}</div>
        <h1 class="hero-title">DELOAD —<br><span class="accent">ON PURPOSE</span></h1>
@@ -269,9 +272,12 @@ function renderToday() {
        <div class="hero-actions">
          <button class="btn primary" onclick="startFocus()">START SESSION ▸</button>
          ${readyCount ? `<button class="btn ghost" onclick="setView('ladders')">⚡ ${readyCount} TEST-OUT${readyCount > 1 ? 'S' : ''} READY</button>` : ''}
+         ${state.sessionCount > 0 ? `<button class="btn ghost" onclick="shareStats()">📸 SHARE CARD</button>` : ''}
        </div>`;
 
   const rx = deloadCheck();
+  const totalLevels = CHAINS.reduce((s, c) => s + state.chains[c.id].level, 0);
+  const showPlacement = !state.placementDone && !state.placementDismissed && totalLevels === 0 && state.sessionCount === 0;
   const hrsSince = state.lastSessionAt ? (Date.now() - state.lastSessionAt) / 3600000 : null;
   const overdue = !trainedToday && hrsSince !== null && hrsSince >= 48;
   const showRemindCard = !state.remindersOn && !state.remindersDismissed && state.sessionCount >= 1;
@@ -294,6 +300,17 @@ function renderToday() {
       <div class="rx-actions">
         <button class="btn primary small" onclick="enableReminders()">TURN ON REMINDERS</button>
         <button class="btn ghost small" onclick="dismissReminders()">NO THANKS</button>
+      </div>
+    </div>` : ''}
+
+    ${showPlacement ? `<div class="remind-card reveal" style="animation-delay:60ms" id="placementCard">
+      <div class="rx-text">
+        <b style="color:var(--ember)">🎯 NEW HERE? FIND YOUR REAL STARTING LEVEL</b>
+        <p>Ten quick tests, about ten minutes. Every chain starts exactly where you are — no grinding through levels you've already outgrown.</p>
+      </div>
+      <div class="rx-actions">
+        <button class="btn primary small" onclick="startPlacement()">TAKE THE PLACEMENT</button>
+        <button class="btn ghost small" onclick="state.placementDismissed=true;save();render()">START FROM ZERO</button>
       </div>
     </div>` : ''}
 
@@ -956,6 +973,119 @@ function focusSkipRest() {
   focusRender();
 }
 
+/* ---------- PLACEMENT ASSESSMENT ---------- */
+
+let placeIdx = 0;
+let placeChoices = {};   // chainId -> level name
+
+function startPlacement() {
+  placeIdx = 0;
+  placeChoices = {};
+  $('#placeOverlay').hidden = false;
+  document.body.style.overflow = 'hidden';
+  placeRender();
+}
+
+function closePlacement() {
+  $('#placeOverlay').hidden = true;
+  document.body.style.overflow = '';
+}
+
+function placeRender() {
+  const inner = $('#placeInner');
+  const total = PLACEMENT.length;
+
+  /* summary screen */
+  if (placeIdx >= total) {
+    const rows = PLACEMENT.map(p => {
+      const c = chainById(p.chain);
+      const name = placeChoices[p.chain] ?? c.levels[0].name;
+      const idx = Math.max(0, c.levels.findIndex(l => l.name === name));
+      const band = c.levels[idx].band;
+      return `<div class="place-row">
+        <b class="mono">${c.short}</b>
+        <span>${name}</span>
+        <span class="band-chip band-${band}">${BANDS[band].label}</span>
+      </div>`;
+    }).join('');
+    inner.innerHTML = `
+      <div class="focus-head">
+        <button class="focus-x" onclick="placeBack()">‹</button>
+        <div class="focus-title mono">PLACEMENT · YOUR STARTING MAP</div>
+        <button class="focus-x" onclick="closePlacement()">✕</button>
+      </div>
+      <div class="focus-stage" style="justify-content:flex-start;padding-top:30px">
+        <div class="focus-exname" style="font-size:clamp(30px,8vw,44px)">THE MAP<br>IS DRAWN</div>
+        <p class="focus-cue">Every chain starts exactly where you are. Levels below your placement count as cleared — the ladders open up from here. This overwrites current chain levels.</p>
+        <div class="place-list">${rows}</div>
+        <button class="focus-done-btn" onclick="placeApply()">LOCK IT IN — START TRAINING</button>
+      </div>`;
+    return;
+  }
+
+  /* one chain's test */
+  const p = PLACEMENT[placeIdx];
+  const c = chainById(p.chain);
+  inner.innerHTML = `
+    <div class="focus-head">
+      ${placeIdx > 0 ? `<button class="focus-x" onclick="placeBack()">‹</button>` : `<button class="focus-x" onclick="closePlacement()">✕</button>`}
+      <div class="focus-title mono">PLACEMENT TEST · ${placeIdx + 1}/${total}</div>
+      <div class="focus-count mono">${c.short}</div>
+    </div>
+    <div class="focus-track"><div class="focus-fill" style="width:${(placeIdx / total) * 100}%"></div></div>
+    <div class="focus-stage" style="justify-content:flex-start;padding-top:34px">
+      <div class="focus-block-label">${p.title.toUpperCase()}</div>
+      <div class="focus-exname" style="font-size:clamp(26px,7vw,38px)">WHERE ARE YOU?</div>
+      <p class="focus-cue">${p.instruct}</p>
+      <div class="place-opts">
+        ${p.options.map((o, i) => {
+          const idx = c.levels.findIndex(l => l.name === o.level);
+          const band = idx >= 0 ? c.levels[idx].band : 'beg';
+          return `<button class="place-opt ${placeChoices[p.chain] === o.level ? 'picked' : ''}" onclick="placePick('${o.level.replace(/'/g, "\\'")}')">
+            <span>${o.label}</span>
+            <small class="mono">START AT: ${o.level} · <i class="band-${band}" style="font-style:normal">${BANDS[band].label}</i></small>
+          </button>`;
+        }).join('')}
+      </div>
+      <button class="btn ghost small" onclick="placePick(null)">NOT SURE — START AT THE BEGINNING</button>
+    </div>`;
+}
+
+function placePick(levelName) {
+  const p = PLACEMENT[placeIdx];
+  const c = chainById(p.chain);
+  placeChoices[p.chain] = levelName || c.levels[0].name;
+  placeIdx++;
+  placeRender();
+}
+
+function placeBack() {
+  placeIdx = Math.max(0, placeIdx - 1);
+  placeRender();
+}
+
+function placeApply() {
+  for (const p of PLACEMENT) {
+    const c = chainById(p.chain);
+    const name = placeChoices[p.chain] ?? c.levels[0].name;
+    const idx = Math.max(0, c.levels.findIndex(l => l.name === name));
+    const st = state.chains[p.chain];
+    st.level = idx;
+    st.target = c.levels[idx].scheme.start;
+    st.ready = false;
+    st.missStreak = 0;
+  }
+  state.placementDone = todayStr();
+  state.activeSession = null;   // session scaffolds rebuild at the new levels
+  trainDay = null;
+  save();
+  closePlacement();
+  const placed = CHAINS.reduce((s, c) => s + state.chains[c.id].level, 0);
+  celebrate('PLACEMENT SET', 'THE CLIMB BEGINS',
+    `${placed} levels credited across your ten chains. Session A is built around your real starting points — go take it.`);
+  render();
+}
+
 /* ---------- LADDERS ---------- */
 
 function openLadder(cid) { ladderChain = cid; setView('ladders'); }
@@ -1038,6 +1168,7 @@ function passTest() {
   const c = chainById(cid);
   const st = state.chains[cid];
   const passedName = c.levels[st.level].name;
+  const passedShare = { kind: 'level', chain: cid, name: passedName, band: c.levels[st.level].band, levelNum: st.level + 1 };
   st.passedAt[st.level] = todayStr();
   st.level++;
   st.ready = false;
@@ -1051,10 +1182,10 @@ function passTest() {
   $('#testOverlay').hidden = true;
 
   if (done) {
-    celebrate('CHAIN COMPLETE', c.title.toUpperCase(), 'Every level passed. That is mastery. ✦');
+    celebrate('CHAIN COMPLETE', c.title.toUpperCase(), 'Every level passed. That is mastery. ✦', passedShare);
   } else {
     const next = c.levels[st.level];
-    celebrate('LEVEL CLEARED', passedName, `Next up: <b>${next.name}</b> · ${fmtTarget(next.scheme, next.scheme.start)} → gate at ${next.test.label}`);
+    celebrate('LEVEL CLEARED', passedName, `Next up: <b>${next.name}</b> · ${fmtTarget(next.scheme, next.scheme.start)} → gate at ${next.test.label}`, passedShare);
   }
   render();
 }
@@ -1138,6 +1269,10 @@ function renderRecover() {
         <button class="btn small ${state.remindersOn ? 'ghost' : ''}" onclick="${state.remindersOn ? 'disableReminders()' : 'enableReminders()'}">
           ${state.remindersOn ? 'TURN OFF' : 'TURN ON'}</button>
       </div>
+      <div class="remind-row">
+        <span>🎯 Placement test${state.placementDone ? `: <b>done ${state.placementDone}</b>` : ' — set every chain to your real level'}</span>
+        <button class="btn small ghost" onclick="startPlacement()">${state.placementDone ? 'RETAKE' : 'TAKE IT'}</button>
+      </div>
       <p class="legal-line">IRONPATH is general fitness information, not medical advice. Consult a physician before training; stop on sharp or joint pain. You train at your own risk.</p>
     </div>`;
 }
@@ -1215,14 +1350,231 @@ function confirmImport() {
 
 /* ---------- CELEBRATION + CONFETTI ---------- */
 
-function celebrate(kicker, name, nextHtml) {
+let shareInfo = null;   // what the celebrate-overlay share button will render
+
+function celebrate(kicker, name, nextHtml, share = null) {
   $('#celebrateKicker').textContent = kicker;
   $('#celebrateName').textContent = name;
   $('#celebrateNext').innerHTML = nextHtml;
+  shareInfo = share;
+  $('#celebrateShare').hidden = !share;
   $('#celebrateOverlay').hidden = false;
   confetti();
   beep([880, 1174.7, 1568], 0.12);
   buzz([50, 40, 50, 40, 120]);
+}
+
+/* ---------- SHARE CARDS (canvas, brand-drawn) ---------- */
+
+const CARD_W = 1080, CARD_H = 1350;
+
+function cardBase(ctx) {
+  ctx.fillStyle = '#0b0c0e';
+  ctx.fillRect(0, 0, CARD_W, CARD_H);
+  // faint radial ember glow top-right
+  const g = ctx.createRadialGradient(CARD_W * 0.85, -100, 50, CARD_W * 0.85, -100, 900);
+  g.addColorStop(0, 'rgba(255,92,31,0.18)');
+  g.addColorStop(1, 'rgba(255,92,31,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, CARD_W, CARD_H);
+  // hazard stripe top
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, 0, CARD_W, 26); ctx.clip();
+  ctx.fillStyle = '#ff5c1f';
+  for (let x = -60; x < CARD_W + 60; x += 52) {
+    ctx.save(); ctx.translate(x, 0); ctx.rotate(-Math.PI / 4);
+    ctx.fillRect(0, -30, 26, 90); ctx.restore();
+  }
+  ctx.restore();
+  // brand
+  ctx.fillStyle = '#ff5c1f';
+  roundRect(ctx, 64, 78, 74, 74, 16); ctx.fill();
+  ctx.fillStyle = '#0b0c0e';
+  ctx.font = '38px Anton, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('IP', 101, 118);
+  ctx.fillStyle = '#ecede8';
+  ctx.font = '34px Anton, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('IRONPATH', 160, 108);
+  ctx.fillStyle = '#8b9099';
+  ctx.font = '600 17px "IBM Plex Mono", monospace';
+  ctx.fillText('B O D Y W E I G H T   M A S T E R Y', 161, 142);
+  // date top right
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#565b63';
+  ctx.fillText(new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase(), CARD_W - 64, 118);
+  ctx.textAlign = 'left';
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function cardFooter(ctx) {
+  ctx.fillStyle = '#565b63';
+  ctx.font = '600 20px "IBM Plex Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('FORGED ON THE IRONPATH', CARD_W / 2, CARD_H - 70);
+  ctx.textAlign = 'left';
+}
+
+function statLine(ctx, y) {
+  const stats = [
+    [String(state.sessionCount), 'SESSIONS'],
+    [String(CHAINS.reduce((s, c) => s + state.chains[c.id].level, 0)), 'LEVELS'],
+    [String(streak()), 'STREAK'],
+  ];
+  const w = 250;
+  const x0 = (CARD_W - w * stats.length) / 2;
+  stats.forEach(([v, l], i) => {
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ecede8';
+    ctx.font = '64px Anton, sans-serif';
+    ctx.fillText(v, x0 + w * i + w / 2, y);
+    ctx.fillStyle = '#565b63';
+    ctx.font = '600 18px "IBM Plex Mono", monospace';
+    ctx.fillText(l, x0 + w * i + w / 2, y + 36);
+  });
+  ctx.textAlign = 'left';
+}
+
+async function drawLevelCard(info) {
+  await document.fonts.ready;
+  const cv = document.createElement('canvas');
+  cv.width = CARD_W; cv.height = CARD_H;
+  const ctx = cv.getContext('2d');
+  cardBase(ctx);
+
+  ctx.fillStyle = '#ff5c1f';
+  ctx.font = '600 26px "IBM Plex Mono", monospace';
+  ctx.fillText('L E V E L   C L E A R E D', 64, 320);
+
+  // exercise name, up to 2 lines
+  ctx.fillStyle = '#ecede8';
+  let size = 120;
+  ctx.font = `${size}px Anton, sans-serif`;
+  const words = info.name.toUpperCase().split(' ');
+  let lines = [''];
+  for (const w of words) {
+    const t = (lines[lines.length - 1] + ' ' + w).trim();
+    if (ctx.measureText(t).width > CARD_W - 128 && lines[lines.length - 1]) lines.push(w);
+    else lines[lines.length - 1] = t;
+  }
+  if (lines.length > 2) { size = 88; ctx.font = `${size}px Anton, sans-serif`; }
+  lines.forEach((l, i) => ctx.fillText(l, 64, 320 + 130 + i * (size + 14)));
+  let y = 320 + 130 + (lines.length - 1) * (size + 14) + 70;
+
+  const c = chainById(info.chain);
+  ctx.fillStyle = '#8b9099';
+  ctx.font = '600 28px "IBM Plex Mono", monospace';
+  ctx.fillText(`${c.title.toUpperCase()}  ·  LEVEL ${info.levelNum}/${c.levels.length} PASSED`, 64, y);
+  y += 64;
+
+  // band chip
+  const bandColors = { beg: '#6fa8dc', int: '#ffc24b', adv: '#ff5c1f', elite: '#e9e9f2' };
+  const bc = bandColors[info.band] || '#6fa8dc';
+  ctx.strokeStyle = bc; ctx.lineWidth = 3;
+  const label = BANDS[info.band].label;
+  ctx.font = '600 26px "IBM Plex Mono", monospace';
+  const lw = ctx.measureText(label).width;
+  roundRect(ctx, 64, y - 34, lw + 66, 56, 12); ctx.stroke();
+  ctx.fillStyle = bc;
+  ctx.beginPath(); ctx.arc(64 + 30, y - 6, 8, 0, Math.PI * 2); ctx.fill();
+  ctx.fillText(label, 64 + 50, y + 3);
+
+  statLine(ctx, CARD_H - 240);
+  cardFooter(ctx);
+  return cv;
+}
+
+async function drawStatsCard() {
+  await document.fonts.ready;
+  const cv = document.createElement('canvas');
+  cv.width = CARD_W; cv.height = CARD_H;
+  const ctx = cv.getContext('2d');
+  cardBase(ctx);
+
+  ctx.fillStyle = '#ff5c1f';
+  ctx.font = '600 26px "IBM Plex Mono", monospace';
+  ctx.fillText('P R O G R E S S   R E P O R T', 64, 300);
+  ctx.fillStyle = '#ecede8';
+  ctx.font = '96px Anton, sans-serif';
+  const escaped = CHAINS.filter(c => escapedBeginner(c.id)).length;
+  ctx.fillText(`DAY ${String(missionDay()).padStart(2, '0')} · ${escaped}/10 OUT`, 64, 410);
+
+  // ten-chain radar
+  const cx = CARD_W / 2, cy = 790, R = 250;
+  const n = CHAINS.length;
+  ctx.strokeStyle = 'rgba(236,237,232,0.10)'; ctx.lineWidth = 2;
+  for (const frac of [0.33, 0.66, 1]) {
+    ctx.beginPath();
+    for (let i = 0; i <= n; i++) {
+      const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+      const x = cx + Math.cos(a) * R * frac, yy = cy + Math.sin(a) * R * frac;
+      i ? ctx.lineTo(x, yy) : ctx.moveTo(x, yy);
+    }
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  CHAINS.forEach((c, i) => {
+    const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const frac = Math.max(0.06, chainPct(c.id));
+    const x = cx + Math.cos(a) * R * frac, yy = cy + Math.sin(a) * R * frac;
+    i ? ctx.lineTo(x, yy) : ctx.moveTo(x, yy);
+  });
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(255,92,31,0.28)'; ctx.fill();
+  ctx.strokeStyle = '#ff5c1f'; ctx.lineWidth = 4; ctx.stroke();
+  // labels
+  ctx.font = '600 19px "IBM Plex Mono", monospace';
+  ctx.fillStyle = '#8b9099';
+  ctx.textAlign = 'center';
+  CHAINS.forEach((c, i) => {
+    const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+    ctx.fillText(c.short, cx + Math.cos(a) * (R + 52), cy + Math.sin(a) * (R + 52) + 7);
+  });
+  ctx.textAlign = 'left';
+
+  statLine(ctx, CARD_H - 200);
+  cardFooter(ctx);
+  return cv;
+}
+
+async function shareCanvas(cv, filename) {
+  cv.toBlob(async (blob) => {
+    if (!blob) { toast('Could not build the card.'); return; }
+    const file = new File([blob], filename, { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file] }); return; }
+      catch (e) { if (e && e.name === 'AbortError') return; /* else fall through */ }
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    toast('Card saved — post it anywhere. 📸');
+  }, 'image/png');
+}
+
+async function shareStats() {
+  shareCanvas(await drawStatsCard(), `ironpath-progress-${todayStr()}.png`);
+}
+
+async function shareFromCelebrate() {
+  if (!shareInfo) return;
+  if (shareInfo.kind === 'level') {
+    shareCanvas(await drawLevelCard(shareInfo), `ironpath-${shareInfo.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`);
+  } else {
+    shareStats();
+  }
 }
 
 function confetti() {
@@ -1369,6 +1721,7 @@ function storageAvailable() {
   $('#testCancel').addEventListener('click', () => { $('#testOverlay').hidden = true; });
   $('#testPass').addEventListener('click', passTest);
   $('#celebrateClose').addEventListener('click', () => { $('#celebrateOverlay').hidden = true; render(); });
+  $('#celebrateShare').addEventListener('click', shareFromCelebrate);
   $('#restSkip').addEventListener('click', () => { clearInterval(restInterval); $('#restDock').hidden = true; });
   $('#reportClose').addEventListener('click', () => { $('#reportOverlay').hidden = true; render(); });
   $('#importFile').addEventListener('change', (e) => {

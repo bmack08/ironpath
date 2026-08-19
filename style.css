@@ -834,6 +834,37 @@ body {
 .focus-next { font-family: var(--mono); font-size: 11px; letter-spacing: 2px; color: var(--faint); }
 .focus-next b { display: block; color: var(--ink); font-size: 14px; letter-spacing: 1px; margin-top: 4px; }
 
+/* ============ PLACEMENT ============ */
+
+.place-opts { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 460px; }
+.place-opt {
+  appearance: none; cursor: pointer; text-align: left;
+  border: 1px solid var(--line2); border-radius: 12px;
+  background: var(--panel); color: var(--ink);
+  padding: 15px 18px;
+  font-family: var(--body); font-size: 14.5px; font-weight: 600;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.place-opt small { font-size: 10px; letter-spacing: 1px; color: var(--faint); font-weight: 400; }
+.place-opt small .band-beg { color: var(--band-beg); }
+.place-opt small .band-int { color: var(--band-int); }
+.place-opt small .band-adv { color: var(--band-adv); }
+.place-opt small .band-elite { color: var(--band-elite); }
+.place-opt:hover { border-color: var(--ink); }
+.place-opt:active { transform: scale(0.98); }
+.place-opt.picked { border-color: var(--ember); background: var(--ember-soft); }
+.place-list { width: 100%; max-width: 460px; display: flex; flex-direction: column; margin-bottom: 8px; }
+.place-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0; border-bottom: 1px dashed var(--line);
+  font-size: 13px; text-align: left;
+}
+.place-row b { min-width: 100px; font-size: 10.5px; letter-spacing: 1.5px; color: var(--faint); }
+.place-row span:nth-child(2) { flex: 1; }
+
+.celebrate-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
 /* ============ REST DOCK ============ */
 
 .rest-dock {

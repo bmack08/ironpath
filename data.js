@@ -835,5 +835,82 @@ function subsFor(chainId, levelName) {
   return [...(SUBS[k] || []), ...(HOME[k] || [])];
 }
 
+/* ---------- Placement assessment ----------
+   One quick do-it-now test per chain. Each option names the LEVEL the user
+   should start training at (resolved by name, so reordering levels is safe). */
+
+const PLACEMENT = [
+  { chain: 'pushup', title: 'Push',
+    instruct: 'Drop and do full floor push ups — chest to a fist off the floor, body straight. Count clean reps only.',
+    options: [
+      { label: "Can't do 3 clean ones yet", level: 'Incline Push Up' },
+      { label: '3–9 clean push ups', level: 'Push Up' },
+      { label: '10–20 clean push ups', level: 'Diamond Push Up' },
+      { label: '20+ easy, diamonds too', level: 'Pseudo Planche PU' } ] },
+  { chain: 'squat', title: 'Squat',
+    instruct: 'Squat as deep as you can, heels down. How do deep bodyweight squats (hips below knees) feel?',
+    options: [
+      { label: 'Need support to get low', level: 'Assisted Squat' },
+      { label: 'Parallel is my limit', level: 'Parallel Squat' },
+      { label: '10+ deep squats, no problem', level: 'Full Squat' },
+      { label: '20+ easy — give me single-leg work', level: 'Split Squat' } ] },
+  { chain: 'row', title: 'Row',
+    instruct: 'Find something to row on — a table edge, low bar, or rings. Body straight, pull chest to hands.',
+    options: [
+      { label: 'Standing rows are where I am', level: 'Vertical Row' },
+      { label: 'I can row at ~45°', level: 'Incline Row' },
+      { label: '8 clean rows with my body flat', level: 'Wide Row' },
+      { label: 'Flat rows are easy, wide too', level: 'Archer Row' } ] },
+  { chain: 'pullup', title: 'Pull',
+    instruct: 'If you can reach a bar: dead hang, then pull. Chin over bar, no kicking.',
+    options: [
+      { label: "Hanging itself is hard", level: 'Scapular Shrug' },
+      { label: 'I can hang, but no pull ups yet', level: 'Pull Up Negative' },
+      { label: '1–7 strict pull ups', level: 'Pull Up' },
+      { label: '8+ strict pull ups', level: 'L-Pull Up' } ] },
+  { chain: 'dip', title: 'Dip',
+    instruct: 'Lock out on parallel bars, chair backs, or a counter corner. Hold it, then try to dip.',
+    options: [
+      { label: "Can't hold the support 30s", level: 'PB Support Hold' },
+      { label: 'Can hold it, dips too hard', level: 'Dip Negative' },
+      { label: '1–7 full-depth dips', level: 'Dip' },
+      { label: '8+ deep dips', level: 'L-Dip' } ] },
+  { chain: 'hs', title: 'Handstand',
+    instruct: 'Kick up against a wall — or just try a wall plank (feet on wall, body at 45°).',
+    options: [
+      { label: 'Wall plank is plenty', level: 'Wall Plank' },
+      { label: '45s wall plank is easy', level: 'Pike Push Up' },
+      { label: '8 pike push ups, head to floor', level: 'Decline Pike PU' },
+      { label: 'I can hold a wall handstand 30s+', level: 'Freestanding HS' } ] },
+  { chain: 'hinge', title: 'Hinge',
+    instruct: 'Stand on one leg, hinge forward flat-backed until your torso is near horizontal. Try a few per leg.',
+    options: [
+      { label: 'Balance/form breaks fast', level: 'Reverse Hyperextension' },
+      { label: 'A few shaky ones per leg', level: 'One Leg Deadlift' },
+      { label: '8+ smooth per leg', level: '90° Hip Nordic Curl' },
+      { label: 'I already train nordic curls', level: 'Nordic Curl Negative' } ] },
+  { chain: 'lsit', title: 'L-Sit',
+    instruct: 'Sit on the floor, hands beside hips (books help), push down and try to lift your feet.',
+    options: [
+      { label: 'Feet stay planted', level: 'Foot Supported L-Sit' },
+      { label: 'One leg comes up', level: 'One Leg L-Sit' },
+      { label: 'Tucked feet off floor 10s', level: 'Tuck L-Sit' },
+      { label: 'Full L-sit 5-10s', level: 'L-Sit' } ] },
+  { chain: 'hang', title: 'Core · Hanging',
+    instruct: 'From a dead hang (or lying on your back if no bar): pull knees to chest, slow, no swing.',
+    options: [
+      { label: 'A few reps is a fight', level: 'Hanging Knees to Chest' },
+      { label: '10 knee raises, controlled', level: 'Hanging Bent Leg Raise' },
+      { label: 'Straight-leg raises to horizontal', level: 'Hanging Leg Raise' },
+      { label: 'Toes to bar', level: 'Toes to Bar' } ] },
+  { chain: 'antiext', title: 'Core · Plank',
+    instruct: 'Hard-style forearm plank — glutes squeezed, ribs down. How long before form cracks?',
+    options: [
+      { label: 'Under 60 seconds', level: 'Plank' },
+      { label: '60s is comfortable', level: 'One Arm Plank' },
+      { label: 'One-arm planks are fine', level: 'Knees Ab Wheel' },
+      { label: 'I use an ab wheel already', level: 'Ab Wheel Negative' } ] },
+];
+
 /* Escape-beginner 30-day mission shown on dashboard */
 const MISSION_DAYS = 30;
