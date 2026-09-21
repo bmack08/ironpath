@@ -523,6 +523,12 @@ const DAYS = {
   C: { key: 'C', name: 'TEST', tagline: 'Strength + final AMRAP set · prove the level',
        desc: 'Normal targets, but the last set of each exercise is AMRAP (as many clean reps as possible). Hit the test-out threshold here and the gate unlocks.',
        setMod: 0, restPair: 90, restCore: 60 },
+  /* The escape hatch. Not part of the Mon/Wed/Fri rotation — an express
+     AMRAP for the days the full session is not going to happen. */
+  E: { key: 'E', name: 'ENGINE', tagline: 'Short on time · rotating AMRAP · scaled to you',
+       express: true,
+       desc: 'Cindy, run on your ladders: pull, push, legs and core at your current levels, round after round until the clock runs out. Rounds rotate so the same movement never grinds you into the floor, and every movement is filtered to the gear you actually have. A missed session costs more than a shortened one — this is the shortened one. It banks volume and holds your streak, but it never moves a target.',
+       setMod: 0, restPair: 0, restCore: 0 },
 };
 
 /* Session structure: which chains appear, in what blocks. */
